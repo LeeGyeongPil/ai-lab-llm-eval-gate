@@ -125,6 +125,9 @@ def cmd_run(args) -> int:
     print(format_table([result]))
     html_path = write_outputs(cfg, [result], args.name)
     print(f"보고서: {os.path.relpath(html_path)}")
+    if cfg["run"]["mode"] == "record" and getattr(provider, "reused", 0) and not getattr(provider, "recorded", 0):
+        print(f"경고: 모델을 한 번도 부르지 않았습니다. 요청 {provider.reused}건이 모두 기존 녹화({cfg['run']['cassette']})에 있어 건너뛰었습니다. "
+              "내 평가 세트로 새로 녹화하려면 예시 녹화 파일을 지우거나 run.cassette 를 새 경로로 바꾸고, 다시 녹화하려면 --overwrite 를 쓰세요.", file=sys.stderr)
     if args.gate:
         print_gate([result])
         return EXIT_OK if result["gate"]["passed"] else EXIT_GATE_FAIL

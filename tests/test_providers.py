@@ -84,3 +84,12 @@ def test_record_cli_then_mock_gives_same_scores(stub, project, monkeypatch, caps
     capsys.readouterr()
     assert cli.main(["run", "--mode", "mock", "--prompt", "prompts/regressed.txt", "--repeats", "1"]) == 2
     assert "--mode record" in capsys.readouterr().err
+
+
+def test_record_warns_when_every_request_was_already_recorded(stub, project, monkeypatch, capsys):
+    """예시 녹화를 그대로 둔 채 record 를 돌리면 모델을 부르지 않는다 — 성공처럼 보이지 않게 경고한다."""
+    monkeypatch.setenv("EVALGATE_BASE_URL", stub.url)
+    assert cli.main(["run", "--mode", "record", "--prompt", "prompts/baseline.txt", "--repeats", "2", "--name", "rec"]) == 0
+    captured = capsys.readouterr()
+    assert "경고: 모델을 한 번도 부르지 않았습니다" in captured.err
+    assert len(stub.requests) == 0

@@ -136,12 +136,16 @@ class RecordingProvider:
         self.path = Path(path)
         self.overwrite = overwrite
         self.store = CassetteProvider(self.path)  # 기존 녹화(이어 하기용). 이 실행에서 부른 만큼만 늘어난다.
+        self.reused = 0  # 이미 녹화돼 있어 모델을 부르지 않고 건너뛴 요청 수
+        self.recorded = 0  # 이번 실행에서 실제로 모델을 불러 새로 녹화한 요청 수
         self.lock = threading.Lock()  # 워커 스레드가 한 줄씩 안전하게 쓰도록
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def _record(self, kind: str, request: dict, repeat: int, response, call):
         key = request_key(kind, request, repeat)
         if not self.overwrite and key in self.store.entries:
+            with self.lock:
+                self.reused += 1
             return self.store.entries[key]["response"]
         response = call()
         entry = {"req_hash": key, "kind": kind, "model": request["model"], "request": _summary(kind, request), "response": response,
@@ -150,6 +154,7 @@ class RecordingProvider:
             with self.path.open("a", encoding="utf-8") as f:  # 한 줄씩 바로 flush — 중간에 끊겨도 지금까지 분은 남는다
                 f.write(json.dumps(entry, ensure_ascii=False) + "\n")
             self.store.entries[key] = entry
+            self.recorded += 1
         return response
 
     def chat(self, request: dict, repeat: int = 0, label: str = "") -> str:
