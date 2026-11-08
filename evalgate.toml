@@ -1,0 +1,61 @@
+# evalgate 설정 — 이 파일 하나로 "무엇을 어떻게 채점하고 언제 실패시킬지"를 정한다.
+# 다른 프로젝트로 옮길 때는 이 파일과 evals/, prompts/, cassettes/ 만 바꾸면 된다.
+# 우선순위: 명령행 옵션 > EVALGATE_* 환경변수 > 이 파일
+
+[run]
+mode = "mock"                          # mock(녹화 재생, 기본) | real(실호출) | record(실호출 + 녹화)
+prompt = "prompts/baseline.txt"        # 평가할 프롬프트(시스템 메시지로 들어간다)
+cases = "evals/cases.jsonl"            # 평가 세트
+baseline = "evals/baseline.json"       # 비교 기준선
+cassette = "cassettes/qwen3-4b.jsonl"  # 녹화 파일
+reports_dir = "reports"                # 보고서 출력 폴더(git 무시)
+repeats = 2                            # 케이스당 반복 횟수(표준오차를 내려면 2 이상)
+workers = 2                            # 동시 요청 수(로컬 GPU 하나면 2 정도가 적당)
+
+[model]
+base_url = "http://localhost:11434/v1" # OpenAI 호환 엔드포인트(Ollama)
+api_key = "ollama"                     # Ollama 는 키를 보지 않는다. 호스팅 서비스는 EVALGATE_API_KEY 로
+name = "qwen3:4b"                      # 피평가 모델
+judge = ""                             # 심판 모델. 비우면 name 과 같음(자기 선호 편향이 걱정되면 다른 모델로)
+embed = "bge-m3"                       # 임베딩 모델
+temperature = 0.6                      # 생각 모델 권장값. 0 으로 두면 생각이 오히려 길어진다
+top_p = 0.95
+max_tokens = 3000                      # 생각 과정까지 포함한 상한
+seed = 1000                            # 생성 시드 = seed + 반복 번호(반복마다 다르지만 항상 같은 값)
+judge_seed = 7                         # 심판 시드 = judge_seed + 반복 번호
+timeout = 300                          # 요청 하나당 제한 시간(초)
+
+# ── 채점기 정의 ───────────────────────────────────────────────
+# 이름(예: label)은 evals/cases.jsonl 의 "scorers" 목록과 [gate] 에서 그대로 쓴다.
+# type 은 exact | regex | contains | similarity | judge 중 하나.
+
+[scorers.format]      # 첫 줄이 "분류: <5종 중 하나>" 형식인가 (정규식)
+type = "regex"
+pattern = '\A분류: (배송|반품|교환|환불|기타)\n'
+
+[scorers.label]       # 분류 라벨이 정답과 같은가 (정규화 후 정확 일치)
+type = "exact"
+extract = '\A\s*분류\s*:\s*(\S+)'    # 답변에서 이 정규식의 첫 그룹만 꺼내 비교한다
+expected = "label"                   # 케이스의 expected.label 과 비교
+
+[scorers.judge]       # 답변이 정책 사실과 맞는가 (LLM 심판, PASS/FAIL)
+type = "judge"
+criteria = "facts"                   # 심판에게 줄 기준: 케이스의 expected.facts
+reference = "reference"              # 참고 모범 답안: 케이스의 expected.reference
+
+[scorers.on_topic]    # 모범 답안과 주제가 비슷한가 (임베딩 코사인). 보조 지표 — 게이트에는 쓰지 않는다
+type = "similarity"
+reference = "reference"
+strip = '\A분류:[^\n]*\n?'            # 비교 전에 지울 부분(분류 줄은 주제 비교에서 뺀다)
+threshold = 0.6
+
+# ── 게이트 규칙 ───────────────────────────────────────────────
+[gate]
+# 1) 절대 하한: 지표 평균이 이 값보다 낮으면 실패
+min_scores = { format = 0.85, label = 0.85, judge = 0.60 }
+# 2) 기준선 대비 허용 하락폭: 기준선보다 이만큼 넘게 떨어지면 실패
+max_drop = 0.20
+
+# ── demo 명령이 비교할 프롬프트 ───────────────────────────────
+[demo]
+prompts = ["prompts/baseline.txt", "prompts/improved.txt", "prompts/regressed.txt"]
