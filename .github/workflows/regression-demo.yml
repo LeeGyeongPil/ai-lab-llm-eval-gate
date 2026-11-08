@@ -1,0 +1,18 @@
+# 시연용: 일부러 품질이 떨어진 프롬프트(regressed)로 게이트를 돌려 빨간 체크를 보여 준다.
+# Actions 탭에서 수동으로 실행한다(이 워크플로는 실패하는 것이 정상이다).
+name: regression-demo
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+      - run: uv sync --locked
+      - name: 회귀 프롬프트로 게이트 실행 (실패해야 함)
+        run: uv run evalgate run --mode mock --prompt prompts/regressed.txt --gate --name regression-demo

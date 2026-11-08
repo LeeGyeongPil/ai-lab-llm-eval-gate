@@ -1,0 +1,49 @@
+# 프롬프트 평가 게이트 — 비밀값·모델 없이 녹화 재생(mock)으로 돈다.
+# push·PR 마다: 단위 테스트 → 현재 프롬프트 게이트(통과해야 함) → 회귀 자가검사(실패해야 함) → 보고서 artifact
+name: eval-gate
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+      - run: uv sync --locked
+      - name: 단위 테스트
+        run: uv run pytest -q
+      - name: 평가 게이트 (현재 프롬프트, 통과해야 함)
+        # 점수가 evalgate.toml 의 하한·허용 하락폭을 넘지 못하면 exit 1 로 이 단계가 빨갛게 된다
+        run: uv run evalgate run --mode mock --prompt prompts/baseline.txt --gate --name gate
+      - name: 회귀 자가검사 (regressed 프롬프트는 게이트가 실패시켜야 함)
+        # 게이트가 고장 나 항상 통과하는 일을 막는다. 종료 코드가 정확히 1 이어야 이 단계가 초록이다.
+        run: |
+          rc=0
+          uv run evalgate run --mode mock --prompt prompts/regressed.txt --gate --name regressed-check || rc=$?
+          if [ "$rc" -ne 1 ]; then
+            echo "regressed 프롬프트는 게이트에서 exit 1 이어야 하는데 exit $rc 였습니다"
+            exit 1
+          fi
+      - name: 보고서 올리기
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: eval-reports
+          path: reports/
+          if-no-files-found: ignore
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: 워크플로 문법 검사 (actionlint)
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color=false .github/workflows/eval-gate.yml .github/workflows/regression-demo.yml docs/adopt/eval-gate.yml
+      - name: 시크릿 검사 (gitleaks)
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 detect --source /repo --no-git --no-banner
