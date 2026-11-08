@@ -22,7 +22,7 @@ docs/adopt/eval-gate.yml           # CI → .github/workflows/eval-gate.yml 로 
    ```
    `expected` 안의 키는 마음대로 정하고, 채점기 설정이 그 키를 가리킵니다(`expected = "label"`).
 2. `evalgate.toml` 의 `[scorers.*]` 를 내 업무에 맞게 고칩니다. `type` 은 `exact`·`regex`·`contains`·`similarity`·`judge`. 이름은 케이스의 `scorers` 목록과 `[gate].min_scores` 에서 그대로 씁니다.
-3. 실모델로 녹화합니다(Ollama 또는 OpenAI 호환 엔드포인트).
+3. 복사해 온 예시 녹화 파일(`cassettes/qwen3-4b.jsonl`)을 지운 뒤 실모델로 녹화합니다(Ollama 또는 OpenAI 호환 엔드포인트). 지우지 않으면 모든 요청을 "이미 녹화됨"으로 건너뛰어 모델을 부르지 않고, 도구가 경고를 냅니다.
    ```
    uv run --no-project --python 3.14 python -m evalgate.cli run --mode record --prompt prompts/baseline.txt
    ```

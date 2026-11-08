@@ -22,13 +22,26 @@
 
 ## 30초 만에 실행하기
 
-준비물: [Python 3.14 이상](https://www.python.org) + [uv](https://docs.astral.sh/uv/) (모델·네트워크·키는 필요 없습니다. 실제 모델 모드에만 [Ollama](https://ollama.com)가 필요합니다.)
+준비물: [uv](https://docs.astral.sh/uv/) (Python 3.14는 uv가 알아서 내려받습니다). 모델·키는 필요 없습니다. 실제 모델 모드에만 [Ollama](https://ollama.com)가 필요합니다.
+
+uv가 없다면 먼저 설치합니다.
+
+```bash
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+설치 직후에는 **새 터미널을 열거나** `source $HOME/.local/bin/env`(macOS/Linux)를 실행해야 `uv` 명령이 잡힙니다.
 
 ```bash
 git clone https://github.com/LeeGyeongPil/ai-lab-llm-eval-gate.git
 cd ai-lab-llm-eval-gate
-uv run evalgate demo
+uv run --no-dev evalgate demo
 ```
+
+`--no-dev`는 테스트용 도구(pytest)를 설치하지 않는다는 뜻입니다. 첫 실행에서 uv가 Python과 필요한 최소 구성을 내려받으므로 그 한 번만 인터넷이 필요하고, 그 뒤에는 네트워크 없이 돕니다(`UV_OFFLINE=1`로 확인). 테스트까지 돌려 보려면 `uv run pytest -q`를 쓰세요(pytest를 내려받습니다).
 
 위 화면이 나오고, `reports/demo.html`(점수 보고서, 브라우저로 열기)이 만들어집니다. 1초 안에 끝납니다. 모델을 부르지 않고 **미리 녹화해 둔 모델 답변을 재생**(mock 모드)하기 때문입니다. 채점·집계·게이트는 실제 코드 그대로 돌아갑니다.
 
@@ -63,8 +76,8 @@ M3 16GB 노트북에서 8문제를 한 번씩 도는 데 약 12분(742초)이 �
 uv run evalgate run --mode mock --prompt prompts/regressed.txt --gate
 ```
 
-![게이트 실패 이유 목록과 종료 코드 1](docs/images/02-gate-fail.png)
-<sub>게이트가 실패한 이유가 한 줄씩 나오고, 프로그램은 종료 코드 1로 끝납니다. CI는 이 1을 보고 빨간 불을 켭니다.</sub>
+![게이트 실패 이유 목록](docs/images/02-gate-fail.png)
+<sub>화면은 실패 이유 부분만 잘라 보여 줍니다(실제로는 그 위에 점수표와 `보고서:` 줄이 먼저 나옵니다). 명령 뒤에 `echo $?`를 이어 쓰면 마지막 줄에 종료 코드 `1`이 찍힙니다. CI는 이 1을 보고 빨간 불을 켭니다.</sub>
 
 이유는 두 종류입니다.
 - `0.00 < 하한 0.85` — 점수가 절대 하한(**floor**, 이 아래면 무조건 실패)보다 낮다
@@ -151,9 +164,11 @@ evalgate.toml                      # 채점기 정의 · 게이트 기준
 evals/cases.jsonl                  # 내 평가 세트
 evals/baseline.json                # 기준선 (4단계에서 새로 만들어 교체)
 prompts/baseline.txt               # 내 현재 프롬프트
-cassettes/qwen3-4b.jsonl           # 녹화 파일 (4단계에서 내 것으로 다시 녹화)
+cassettes/qwen3-4b.jsonl           # 예시 녹화 파일 (4단계에서 지우고 내 것으로 새로 녹화)
 docs/adopt/eval-gate.yml           # CI → 내 프로젝트의 .github/workflows/eval-gate.yml 로 복사
 ```
+
+복사한 `evalgate.toml` 맨 아래의 `[demo]` 섹션은 이 저장소의 `evalgate demo` 전용입니다(`prompts/improved.txt`·`regressed.txt`를 가리킴). 내 프로젝트에는 그 파일이 없으니 섹션을 지우거나 `demo`를 쓰지 마세요(쓰면 종료 코드 2). 또 보고서가 `reports/`에 쌓이므로 내 `.gitignore`에 `reports/`를 추가하세요.
 
 Python 3.14 이상과 [uv](https://docs.astral.sh/uv/)가 필요합니다. 도구는 `PYTHONPATH=src python -m evalgate.cli ...`로 실행합니다(예: `PYTHONPATH=src uv run --no-project --python 3.14 python -m evalgate.cli run --mode mock --gate`). 복사한 예시 케이스·녹화는 내 것으로 바꾸기 전까지 이 저장소의 예시 그대로 통과합니다.
 
@@ -168,6 +183,8 @@ Python 3.14 이상과 [uv](https://docs.astral.sh/uv/)가 필요합니다. 도�
 **3. 채점기와 게이트 정하기** — `evalgate.toml`의 `[scorers.*]`를 고치고 `[gate]` 값을 처음엔 기준선 점수보다 조금 낮게 잡습니다.
 
 **4. 실제 모델로 녹화하고 기준선 저장하기**
+
+먼저 복사해 온 **예시 녹화 파일을 지웁니다**(`rm cassettes/qwen3-4b.jsonl`). 지우지 않으면 `record`는 "이미 녹화된 요청"이라며 모델을 한 번도 부르지 않고 건너뛰고(종료 코드 0), 내 평가 세트 대신 예시 답변이 남습니다. 이 경우 도구가 `경고: 모델을 한 번도 부르지 않았습니다`를 출력합니다. 이 단계는 Ollama(또는 호환 엔드포인트)가 켜져 있어야 합니다.
 
 ```bash
 export PYTHONPATH=src
@@ -218,7 +235,7 @@ uv run --no-project --python 3.14 python -m evalgate.cli baseline               
 | [`src/evalgate/stats.py`](src/evalgate/stats.py) | 평균 · 표준오차 · 기준선 비교 · 잡음 범위 |
 | [`src/evalgate/gate.py`](src/evalgate/gate.py) | 게이트 판정(약 40줄) |
 | [`src/evalgate/report.py`](src/evalgate/report.py) | 외부 요청 없는 단일 HTML 보고서 |
-| [`tests/`](tests) | 단위 · 엔드투엔드 테스트 29개 |
+| [`tests/`](tests) | 단위 · 엔드투엔드 테스트 30개 |
 
 **핵심 1. 게이트는 숫자 비교입니다.** 하한과 비교하고, 기준선 대비 하락폭과 비교하고, 이유 문장을 모아 돌려줍니다. 비어 있으면 통과입니다.
 
@@ -252,8 +269,8 @@ elif cur["mean"] < floor:
 
 ## 직접 바꿔 보기
 
-1. **게이트 조이기** — `evalgate.toml`의 `max_drop`을 `0.20` → `0.05`로 → improved는 그대로 통과하고, 허용 폭을 넘게 내려간 프롬프트는 실패 → `uv run evalgate demo`로 확인.
-2. **하한 올리기** — `min_scores`의 `judge`를 `0.60` → `0.80`으로 → baseline(0.75)도 FAIL이 됨 → 게이트 목록에서 `지표 judge: 0.75 < 하한 0.80`을 확인.
+1. **게이트 조이기** — `evalgate.toml`의 `max_drop`을 `0.20` → `0.05`로 → `uv run evalgate demo`를 다시 돌리면 판정은 그대로 PASS · PASS · FAIL입니다(이 예시는 regressed가 이미 크게 무너져 있어서). 달라지는 것은 regressed의 실패 이유 문구가 `(허용 하락폭 0.05 초과)`로 바뀌는 것뿐입니다. 판정이 바뀌는 것을 보려면 3번처럼 새 프롬프트를 녹화해 점수가 조금만 떨어지는 경우를 만들어 보세요.
+2. **하한 올리기** — `min_scores`의 `judge`를 `0.60` → `0.80`으로 → baseline(0.75)도 FAIL이 됨 → 게이트 목록에서 `지표 judge: 0.75 < 하한 0.80`을 확인. 이때 `demo`는 "baseline·improved는 통과, regressed는 실패"가 아니면 마지막에 `예상과 다른 게이트 결과입니다`라는 경고를 내고 종료 코드 1로 끝납니다. 오류가 아니라 시연이 의도와 달라졌다는 알림이니, 확인 뒤 값을 `0.60`으로 되돌리세요.
 3. **새 프롬프트 만들기** — `prompts/baseline.txt`를 복사해 한 줄을 고치고 `--prompt`로 실행 → 녹화에 없으므로 종료 코드 2와 녹화 안내가 나옴 → 실모델이 있다면 `--mode record`로 녹화한 뒤 다시 실행.
 4. **채점기 바꾸기** — `[scorers.label]`의 `type`을 `contains`로 바꿔 보기 → 정확 일치보다 느슨하게 채점되는지 점수 변화를 비교.
 5. **심판 모델 분리** — `EVALGATE_JUDGE_MODEL`에 다른 모델을 지정하고 `--mode real` → 같은 모델이 자기 답을 채점할 때와 점수가 달라지는지 비교.
