@@ -1,0 +1,27 @@
+# 내 프로젝트용 최소 평가 게이트 — 이 파일을 .github/workflows/eval-gate.yml 로 복사해 쓴다.
+# 비밀값·모델 없이 녹화 재생(mock)으로 채점하고, 점수가 기준에 못 미치면 exit 1 로 빨갛게 된다.
+# 필요한 파일: src/evalgate/, evalgate.toml, evals/cases.jsonl, evals/baseline.json, prompts/baseline.txt, cassettes/
+name: eval-gate
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: 평가 게이트 (녹화 재생)
+        # 복사한 src/evalgate 를 그대로 import 하므로 pyproject.toml 이 없어도 된다
+        env:
+          PYTHONPATH: src
+        run: uv run --no-project --python 3.14 python -m evalgate.cli run --mode mock --prompt prompts/baseline.txt --gate --name gate
+      - name: 보고서 올리기
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: eval-reports
+          path: reports/
+          if-no-files-found: ignore
