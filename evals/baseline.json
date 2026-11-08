@@ -1,0 +1,77 @@
+{
+ "prompt_file": "baseline.txt",
+ "model": "qwen3:4b",
+ "repeats": 2,
+ "metrics": {
+  "format": {
+   "mean": 0.9375,
+   "se": 0.0625,
+   "n": 8
+  },
+  "label": {
+   "mean": 0.9375,
+   "se": 0.0625,
+   "n": 8
+  },
+  "judge": {
+   "mean": 0.75,
+   "se": 0.1336306209562122,
+   "n": 8
+  },
+  "on_topic": {
+   "mean": 1.0,
+   "se": 0.0,
+   "n": 8
+  }
+ },
+ "cases": {
+  "c01": {
+   "format": 0.5,
+   "label": 0.5,
+   "judge": 0.5,
+   "on_topic": 1.0
+  },
+  "c02": {
+   "format": 1.0,
+   "label": 1.0,
+   "judge": 1.0,
+   "on_topic": 1.0
+  },
+  "c03": {
+   "format": 1.0,
+   "label": 1.0,
+   "judge": 1.0,
+   "on_topic": 1.0
+  },
+  "c04": {
+   "format": 1.0,
+   "label": 1.0,
+   "judge": 1.0,
+   "on_topic": 1.0
+  },
+  "c05": {
+   "format": 1.0,
+   "label": 1.0,
+   "judge": 1.0,
+   "on_topic": 1.0
+  },
+  "c06": {
+   "format": 1.0,
+   "label": 1.0,
+   "judge": 0.5,
+   "on_topic": 1.0
+  },
+  "c07": {
+   "format": 1.0,
+   "label": 1.0,
+   "judge": 0.0,
+   "on_topic": 1.0
+  },
+  "c08": {
+   "format": 1.0,
+   "label": 1.0,
+   "judge": 1.0,
+   "on_topic": 1.0
+  }
+ }
+}
