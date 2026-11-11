@@ -5,7 +5,7 @@
 evalgate is a tiny, dependency-free Python tool that scores an LLM prompt against a small test set (exact / regex / contains / embedding similarity / LLM judge) and fails CI when scores drop below a floor or fall too far from a saved baseline. `uv run evalgate demo` runs fully offline by replaying recorded model answers, and shows a deliberately broken prompt turning the gate red.
 
 ![evalgate demo output: score table for three prompts and gate PASS/PASS/FAIL](docs/images/01-demo-terminal.png)
-<sub>Three prompts (baseline · improved · regressed) scored on the same 8 questions. On the last line, `gate`, only regressed is FAIL.</sub>
+<sub>Three prompts (baseline · improved · regressed) scored on the same 8 questions. On the last line, `gate`, only regressed is FAIL.  This screenshot is the English screen; on a Korean locale (`LANG=ko_KR.UTF-8`) the first command prints Korean, and `--lang en` switches it back to English.</sub>
 
 ## One-line summary
 
@@ -79,11 +79,11 @@ uv run evalgate run --mode mock --prompt prompts/regressed.txt --gate
 ```
 
 ![List of gate failure reasons](docs/images/02-gate-fail.png)
-<sub>The screen is cropped to show only the failure reasons (in reality the score table and a `보고서:` ("report:") line come first, above it). If you append `echo $?` after the command, the exit code `1` is printed on the last line. CI sees this 1 and turns the light red.</sub>
+<sub>English screen (`--lang en`; README.ko.md shows the Korean screen). The score table comes first, then the failure reasons. If you append `echo $?` after the command, the exit code `1` is printed on the last line. CI sees this 1 and turns the light red.</sub>
 
 There are two kinds of reasons.
-- `0.00 < 하한 0.85` (score 0.00 < floor 0.85) — the score is lower than the absolute floor (**floor**; below this it always fails)
-- `기준선 0.94 대비 -0.94 (허용 하락폭 0.20 초과)` (versus baseline 0.94, -0.94 (exceeds allowed drop 0.20)) — it dropped more than the allowed amount from the result used as the pass line
+- `metric format: 0.00 < floor 0.85` (Korean: `지표 format: 0.00 < 하한 0.85`) — the score is lower than the absolute floor (**floor**; below this it always fails)
+- `metric format: -0.94 versus baseline 0.94 (exceeds allowed drop 0.20)` (Korean: `지표 format: 기준선 0.94 대비 -0.94 (허용 하락폭 0.20 초과)`) — it dropped more than the allowed amount from the result used as the pass line
 
 There are three exit codes. 0 is pass, 1 is a **gate failure (a score problem)**, and 2 is a configuration, recording or call error (a problem unrelated to scores).
 
@@ -92,7 +92,7 @@ There are three exit codes. 0 is pass, 1 is a **gate failure (a score problem)**
 Open `reports/demo.html` in a browser. There is a card for each prompt, and a failed card gets a failure-reason box.
 
 ![Metric summary in the report. Card 1, baseline, is PASS; card 2, regressed, shows FAIL and a failure-reason box](docs/images/04-report-summary.png)
-<sub>1 baseline meets all floors; 2 regressed has a FAIL badge and a red failure-reason box. The `잡음 범위` ("noise range") text on the cards is the `~` in the Step 1 score table.</sub>
+<sub>1 baseline meets all floors; 2 regressed has a FAIL badge and a red failure-reason box. The `잡음 범위` ("within noise") text on the cards in this screenshot (of a Korean-language report, created by running with `--lang ko`) is the `~` in the Step 1 score table.</sub>
 
 ![Grouped bar chart per metric: baseline, improved, regressed](docs/images/05-report-chart.png)
 <sub>A chart comparing the same metrics across prompts side by side. The format and label bars of regressed are barely visible.</sub>
@@ -141,18 +141,29 @@ flowchart LR
 
    ```toml
    [gate]
-   min_scores = { format = 0.85, label = 0.85, judge = 0.60 }  # 절대 하한
-   max_drop = 0.20                                              # 기준선 대비 허용 하락폭
+   min_scores = { format = 0.85, label = 0.85, judge = 0.60 }  # absolute floor
+   max_drop = 0.20                                              # allowed drop versus baseline
    ```
 
-   If a score is below the floor, or has dropped by more than 0.20 from the baseline, it prints the failure reasons and ends with exit code 1. In GitHub Actions the failure reasons also appear as red `::error` annotations and a score table is attached to the step summary (this README has no screen capture of that after the repository goes public. For now it was checked only with code and tests). (Comments in the TOML: "absolute floor" and "allowed drop versus baseline".)
-
+   If a score is below the floor, or has dropped by more than 0.20 from the baseline, it prints the failure reasons and ends with exit code 1. In GitHub Actions the failure reasons also appear as red `::error` annotations and a score table is attached to the step summary (this README has no screen capture of that after the repository goes public. For now it was checked only with code and tests).
 ### Config file
 
 Scorers and the gate are set in a single `evalgate.toml`.
 
 ![Scorer definitions and gate rules in evalgate.toml](docs/images/03-config.png)
 <sub>The definitions of 4 scorers (regex · exact · judge · similarity) and the `[gate]` rules. The names (format, label…) are used as is in the case file and in the gate.</sub>
+
+### Change the display language
+
+Everything evalgate prints (table legend, gate messages, errors, `--help`) and the reports it writes come in English and Korean. The language is chosen in this order, and anything that is not Korean falls back to English:
+
+1. `--lang en|ko` (a top-level option: `uv run evalgate --lang ko demo`)
+2. the `EVALGATE_LANG` environment variable (`EVALGATE_LANG=ko uv run evalgate demo`)
+3. `LC_ALL`, then `LC_MESSAGES`, then `LANG` (a value starting with `ko`, such as `ko_KR.UTF-8`, means Korean)
+
+An invalid `--lang` value stops with exit code 2 and a message. The HTML report is a static file, so its language is fixed when it is generated (`<html lang>` matches); it has no in-page language menu. The Markdown summary and the GitHub step summary use the same language.
+
+What is **not** translated: JSON keys and structure, exit codes (0 / 1 / 2), metric names, `PASS` / `FAIL`, the judge prompt (it is part of the recording's request hash, so changing it would invalidate every recording), and your data (questions, model answers, judge reasons). Note that the free-text sentences stored in `results.json` (`gate.failures`, the `detail` of each score) follow the chosen language, so **decide in CI with the exit code and the numeric fields, not by matching sentences**. The terminal screenshots in this README show the English screens (`--lang en`); the three HTML report screenshots (Steps 3 and 4) are of a Korean-language report (`--lang ko`).
 
 ## Use it in your own project
 
@@ -161,16 +172,14 @@ The tool uses only the standard library (0 runtime dependencies), so copying the
 **1. What to copy** — copy only the files below (you don't need `pyproject.toml`, the tests or `regressed.txt`).
 
 ```text
-src/evalgate/                      # 도구 본체 (표준 라이브러리만 사용)
-evalgate.toml                      # 채점기 정의 · 게이트 기준
-evals/cases.jsonl                  # 내 평가 세트
-evals/baseline.json                # 기준선 (4단계에서 새로 만들어 교체)
-prompts/baseline.txt               # 내 현재 프롬프트
-cassettes/qwen3-4b.jsonl           # 예시 녹화 파일 (4단계에서 지우고 내 것으로 새로 녹화)
-docs/adopt/eval-gate.yml           # CI → 내 프로젝트의 .github/workflows/eval-gate.yml 로 복사
+src/evalgate/                      # the tool itself (standard library only)
+evalgate.toml                      # scorer definitions and gate criteria
+evals/cases.jsonl                  # your evaluation set
+evals/baseline.json                # baseline (recreate and replace in step 4)
+prompts/baseline.txt               # your current prompt
+cassettes/qwen3-4b.jsonl           # example recording (delete and re-record in step 4)
+docs/adopt/eval-gate.yml           # CI: copy to .github/workflows/eval-gate.yml in your project
 ```
-
-(In English: the tool itself, standard library only; scorer definitions and gate criteria; your evaluation set; baseline, to be recreated and replaced in step 4; your current prompt; an example recording, to be deleted and re-recorded as your own in step 4; CI, to be copied to `.github/workflows/eval-gate.yml` in your project.)
 
 The `[demo]` section at the very bottom of the copied `evalgate.toml` is only for this repository's `evalgate demo` (it points to `prompts/improved.txt` and `regressed.txt`). Your project doesn't have those files, so delete the section or don't use `demo` (if you do, exit code 2). Also, since reports pile up in `reports/`, add `reports/` to your `.gitignore`.
 
@@ -190,15 +199,13 @@ The key names inside `expected` are up to you, and the scorer setting (`expected
 
 **4. Record with a real model and save the baseline**
 
-First **delete the example recording file** you copied (`rm cassettes/qwen3-4b.jsonl`). If you don't, `record` skips as "already recorded request" without calling the model even once (exit code 0), and the example answers remain instead of your evaluation set. In this case the tool prints `경고: 모델을 한 번도 부르지 않았습니다` ("Warning: the model was never called"). This step requires Ollama (or a compatible endpoint) to be running.
+First **delete the example recording file** you copied (`rm cassettes/qwen3-4b.jsonl`). If you don't, `record` skips as "already recorded request" without calling the model even once (exit code 0), and the example answers remain instead of your evaluation set. In this case the tool prints `Warning: the model was never called`. This step requires Ollama (or a compatible endpoint) to be running.
 
 ```bash
 export PYTHONPATH=src
-uv run --no-project --python 3.14 python -m evalgate.cli run --mode record --prompt prompts/baseline.txt   # 실모델 호출 + 녹화 추가
-uv run --no-project --python 3.14 python -m evalgate.cli baseline                                          # 합격 결과를 evals/baseline.json 으로
+uv run --no-project --python 3.14 python -m evalgate.cli run --mode record --prompt prompts/baseline.txt   # call the real model + append recordings
+uv run --no-project --python 3.14 python -m evalgate.cli baseline                                          # save the passing result as evals/baseline.json
 ```
-
-(Comments: "call the real model + append recordings" and "save the passing result as evals/baseline.json".)
 
 `record` skips requests that are already recorded, so you can interrupt a long recording and continue it with the same command. To re-record, use `--overwrite`. The recording stores only the final answer, the judge verdict and the embedding, and does not store the thinking process. To use another OpenAI-compatible endpoint, `export` `EVALGATE_BASE_URL`, `EVALGATE_API_KEY` and `EVALGATE_MODEL` from `.env.example` in your shell (the `.env` file is not read automatically) (priority: command line > environment variables > toml).
 
@@ -215,12 +222,12 @@ This repository's workflow (`.github/workflows/eval-gate.yml`) adds unit tests, 
 **6. In a PR that changes the prompt** — run `--mode record` once with the new prompt and **commit the recording file together**. If a request isn't in the recording, CI fails with exit code 2 and shows the recording command. This is intended behavior (better than passing silently).
 
 ```text
-오류: 녹화에 없는 요청입니다: c01 반복1 생성 (key …, 녹화 파일 qwen3-4b.jsonl).
-  프롬프트·모델·설정을 바꿨다면 실모델로 녹화한 뒤 녹화 파일을 함께 커밋하세요:
-  PYTHONPATH=src uv run --no-project --python 3.14 python -m evalgate.cli run --mode record --prompt <프롬프트 파일>
+Error: Request not in the cassette: c01 repeat 1 generate (key …, cassette file qwen3-4b.jsonl).
+  If you changed the prompt, model or settings, record with a real model and commit the cassette file too:
+  PYTHONPATH=src uv run --no-project --python 3.14 python -m evalgate.cli run --mode record --prompt <prompt file>
 ```
 
-(The message says: "Error: request not in the recording: c01 repeat 1 generation (key …, recording file qwen3-4b.jsonl). If you changed the prompt, model or settings, record with a real model and commit the recording file together:" followed by the command.)
+(With `--lang ko` the same message is printed in Korean, starting with `오류: 녹화에 없는 요청입니다`.)
 
 More detailed procedures and a mock vs. real comparison are in [docs/adopt.md](docs/adopt.md) (Korean), and scorer selection and the noise concept are in [docs/concepts.md](docs/concepts.md) (Korean).
 
@@ -244,17 +251,18 @@ A full correspondence table with the big tools (promptfoo · Inspect) is in [doc
 | [`src/evalgate/scorers.py`](src/evalgate/scorers.py) | exact · regex · contains · similarity · judge |
 | [`src/evalgate/stats.py`](src/evalgate/stats.py) | Mean · standard error · baseline comparison · noise range |
 | [`src/evalgate/gate.py`](src/evalgate/gate.py) | Gate verdict (about 40 lines) |
+| [`src/evalgate/i18n.py`](src/evalgate/i18n.py) | English/Korean message table and language selection |
 | [`src/evalgate/report.py`](src/evalgate/report.py) | A single HTML report with no external requests |
-| [`tests/`](tests) | 30 unit and end-to-end tests |
+| [`tests/`](tests) | 102 unit and end-to-end tests (including English/Korean message-table parity) |
 
 **Key 1. The gate is a number comparison.** It compares with the floor, compares the drop versus the baseline, collects the reason sentences and returns them. If the list is empty, it passes.
 
 ```python
 elif cur["mean"] < floor:
-    failures.append(f"지표 {metric}: {cur['mean']:.2f} < 하한 {floor:.2f}")
+    failures.append(t("gate_floor", lang, metric=metric, value=f"{cur['mean']:.2f}", floor=f"{floor:.2f}"))
 ```
 
-(The f-string reads "metric {metric}: {mean} < floor {floor}".)
+(The message table renders it as "metric {metric}: {value} < floor {floor}" in English.)
 
 **Key 2. If the judge can't be parsed, it is FAIL.** If the judge response is not in the `판정: PASS|FAIL` ("verdict: PASS|FAIL") format, it is recorded as score 0 with `parse_error`. Counting an unreadable one as a pass would inflate scores.
 
@@ -281,8 +289,8 @@ elif cur["mean"] < floor:
 
 ## Try changing things yourself
 
-1. **Tighten the gate** — change `max_drop` in `evalgate.toml` from `0.20` to `0.05` → run `uv run evalgate demo` again and the verdict is still PASS · PASS · FAIL (because in this example regressed has already collapsed badly). The only change is that regressed's failure reason text becomes `(허용 하락폭 0.05 초과)` ("exceeds allowed drop 0.05"). To see a verdict change, as in item 3, record a new prompt and create a case where the score drops only a little.
-2. **Raise the floor** — change `judge` in `min_scores` from `0.60` to `0.80` → baseline (0.75) also becomes FAIL → check `지표 judge: 0.75 < 하한 0.80` in the gate list. At this point, unless the result is "baseline and improved pass, regressed fails", `demo` prints a warning `예상과 다른 게이트 결과입니다` ("unexpected gate result") at the end and finishes with exit code 1. It is not an error but a notice that the demonstration differs from what was intended, so after checking, put the value back to `0.60`.
+1. **Tighten the gate** — change `max_drop` in `evalgate.toml` from `0.20` to `0.05` → run `uv run evalgate demo` again and the verdict is still PASS · PASS · FAIL (because in this example regressed has already collapsed badly). The only change is that regressed's failure reason text becomes `(exceeds allowed drop 0.05)`. To see a verdict change, as in item 3, record a new prompt and create a case where the score drops only a little.
+2. **Raise the floor** — change `judge` in `min_scores` from `0.60` to `0.80` → baseline (0.75) also becomes FAIL → check `metric judge: 0.75 < floor 0.80` in the gate list. At this point, unless the result is "baseline and improved pass, regressed fails", `demo` prints a warning `Unexpected gate results` at the end and finishes with exit code 1. It is not an error but a notice that the demonstration differs from what was intended, so after checking, put the value back to `0.60`.
 3. **Make a new prompt** — copy `prompts/baseline.txt`, change one line and run with `--prompt` → since it's not in the recording, you get exit code 2 and the recording guidance → if you have a real model, record with `--mode record` and run again.
 4. **Change a scorer** — change the `type` of `[scorers.label]` to `contains` → compare the score change to see whether it scores more loosely than an exact match.
 5. **Separate the judge model** — set `EVALGATE_JUDGE_MODEL` to another model and run `--mode real` → compare whether scores differ from when the same model grades its own answers.
@@ -291,11 +299,12 @@ elif cur["mean"] < floor:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `오류: 녹화에 없는 요청입니다` ("Error: request not in the recording") (exit code 2) | You changed the prompt, model or settings and that request is not in the recording | After `PYTHONPATH=src uv run --no-project --python 3.14 python -m evalgate.cli run --mode record --prompt <파일>`, commit the recording file together |
+| `Error: Request not in the cassette` (exit code 2) | You changed the prompt, model or settings and that request is not in the recording | After `PYTHONPATH=src uv run --no-project --python 3.14 python -m evalgate.cli run --mode record --prompt <파일>`, commit the recording file together |
 | `requires-python` error / odd Python version | Below 3.14, or uv chose another version | `uv python install 3.14` (the repository's `.python-version` is pinned to 3.14) |
 | Connection error in real mode | Ollama is off or the models were not pulled | `ollama serve`, `ollama pull qwen3:4b` and `ollama pull bge-m3`; the address is `EVALGATE_BASE_URL` |
 | Real mode is too slow | A thinking model plus a judge call for every question | `--repeats 1`, a smaller set, swap to a model without thinking (outside the range verified in this repository) |
 | Same command, but real-mode scores differ from the recording | Model non-determinism (even with the same seed, it can vary with load) | Normal. Increase the number of repeats and look at the `±` too |
+| Messages are in the wrong language | `--lang` / `EVALGATE_LANG` / `LANG` decide it | Pass `--lang en` or `--lang ko`, or set `EVALGATE_LANG` (see "Change the display language") |
 | `parse_error` in a verdict | The judge response is empty or not in the expected format | Treated as score 0 (intended). Increase `max_tokens` and context length and record again |
 
 ## Limitations

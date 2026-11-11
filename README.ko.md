@@ -2,8 +2,8 @@
 
 [English](README.md) | **한국어**
 
-![evalgate demo 실행 화면: 프롬프트 세 개의 점수표와 게이트 PASS/PASS/FAIL](docs/images/01-demo-terminal.png)
-<sub>프롬프트 3종(baseline · improved · regressed)을 같은 8개 문제로 채점한 결과. 마지막 줄 `gate`에서 regressed만 FAIL입니다.</sub>
+![evalgate demo 실행 화면: 프롬프트 세 개의 점수표와 게이트 PASS/PASS/FAIL](docs/images/01-demo-terminal.ko.png)
+<sub>프롬프트 3종(baseline · improved · regressed)을 같은 8개 문제로 채점한 결과. 마지막 줄 `gate`에서 regressed만 FAIL입니다.  이 스크린샷은 한국어 화면입니다. 영어 로캘에서는 영어로 나오며, 한국어 로캘에서 영어로 보려면 `--lang en`을 붙입니다.</sub>
 
 ## 한 줄 요약
 
@@ -76,8 +76,8 @@ M3 16GB 노트북에서 8문제를 한 번씩 도는 데 약 12분(742초)이 �
 uv run evalgate run --mode mock --prompt prompts/regressed.txt --gate
 ```
 
-![게이트 실패 이유 목록](docs/images/02-gate-fail.png)
-<sub>화면은 실패 이유 부분만 잘라 보여 줍니다(실제로는 그 위에 점수표와 `보고서:` 줄이 먼저 나옵니다). 명령 뒤에 `echo $?`를 이어 쓰면 마지막 줄에 종료 코드 `1`이 찍힙니다. CI는 이 1을 보고 빨간 불을 켭니다.</sub>
+![게이트 실패 이유 목록](docs/images/02-gate-fail.ko.png)
+<sub>한국어 화면(`--lang ko`)입니다(영어 화면은 README.md). 점수표가 먼저 나오고 그 아래에 실패 이유가 나옵니다. 명령 뒤에 `echo $?`를 이어 쓰면 마지막 줄에 종료 코드 `1`이 찍힙니다. CI는 이 1을 보고 빨간 불을 켭니다.</sub>
 
 이유는 두 종류입니다.
 - `0.00 < 하한 0.85` — 점수가 절대 하한(**floor**, 이 아래면 무조건 실패)보다 낮다
@@ -151,6 +151,18 @@ flowchart LR
 
 ![evalgate.toml의 채점기 정의와 게이트 규칙](docs/images/03-config.png)
 <sub>채점기 4개(regex · exact · judge · similarity) 정의와 `[gate]` 규칙. 이름(format, label…)이 케이스 파일과 게이트에서 그대로 쓰입니다.</sub>
+
+### 화면 언어 바꾸기
+
+evalgate가 출력하는 모든 문구(표 범례, 게이트 메시지, 오류, `--help`)와 생성하는 보고서는 영어와 한국어를 지원합니다. 언어는 아래 순서로 정하고, 한국어가 아니면 영어입니다.
+
+1. `--lang en|ko` (최상위 옵션: `uv run evalgate --lang ko demo`)
+2. `EVALGATE_LANG` 환경변수 (`EVALGATE_LANG=ko uv run evalgate demo`)
+3. `LC_ALL` → `LC_MESSAGES` → `LANG` (`ko_KR.UTF-8`처럼 `ko`로 시작하면 한국어)
+
+잘못된 `--lang` 값은 메시지와 함께 종료 코드 2로 멈춥니다. HTML 보고서는 정적 파일이라 **생성할 때의 언어로 고정**되고(`<html lang>`도 맞춰짐) 페이지 안에 언어 전환 메뉴는 없습니다. Markdown 요약과 GitHub 단계 요약도 같은 언어로 만들어집니다.
+
+번역하지 **않는** 것: JSON 키와 구조, 종료 코드(0 / 1 / 2), 지표 이름, `PASS` / `FAIL`, 심판 프롬프트(녹화의 요청 해시에 들어가므로 바꾸면 녹화가 전부 무효가 됩니다), 그리고 평가하는 데이터(문의, 모델 답변, 심판 이유). `results.json` 안의 자유 문장(`gate.failures`, 점수별 `detail`)은 선택한 언어로 저장되므로, CI에서는 문장을 비교하지 말고 **종료 코드와 숫자 필드로 판정**하세요. 이 README의 스크린샷은 한국어 화면(`--lang ko`)입니다.
 
 ## 내 프로젝트에 붙이기
 
@@ -234,14 +246,15 @@ uv run --no-project --python 3.14 python -m evalgate.cli baseline               
 | [`src/evalgate/scorers.py`](src/evalgate/scorers.py) | exact · regex · contains · similarity · judge |
 | [`src/evalgate/stats.py`](src/evalgate/stats.py) | 평균 · 표준오차 · 기준선 비교 · 잡음 범위 |
 | [`src/evalgate/gate.py`](src/evalgate/gate.py) | 게이트 판정(약 40줄) |
+| [`src/evalgate/i18n.py`](src/evalgate/i18n.py) | 영어·한국어 메시지 표와 언어 선택 |
 | [`src/evalgate/report.py`](src/evalgate/report.py) | 외부 요청 없는 단일 HTML 보고서 |
-| [`tests/`](tests) | 단위 · 엔드투엔드 테스트 30개 |
+| [`tests/`](tests) | 단위 · 엔드투엔드 테스트 102개 (영어·한국어 메시지 표 일치 검사 포함) |
 
 **핵심 1. 게이트는 숫자 비교입니다.** 하한과 비교하고, 기준선 대비 하락폭과 비교하고, 이유 문장을 모아 돌려줍니다. 비어 있으면 통과입니다.
 
 ```python
 elif cur["mean"] < floor:
-    failures.append(f"지표 {metric}: {cur['mean']:.2f} < 하한 {floor:.2f}")
+    failures.append(t("gate_floor", lang, metric=metric, value=f"{cur['mean']:.2f}", floor=f"{floor:.2f}"))
 ```
 
 **핵심 2. 심판이 못 읽히면 FAIL입니다.** 심판 응답이 `판정: PASS|FAIL` 형식이 아니면 점수 0과 `parse_error`로 기록합니다. 읽지 못한 것을 통과로 치면 점수가 부풀기 때문입니다.
@@ -284,6 +297,7 @@ elif cur["mean"] < floor:
 | 실모드에서 연결 오류 | Ollama가 꺼져 있거나 모델을 안 받음 | `ollama serve`, `ollama pull qwen3:4b` 와 `ollama pull bge-m3`, 주소는 `EVALGATE_BASE_URL` |
 | 실모드가 너무 느림 | 생각 모델 + 심판 호출이 문제마다 있음 | `--repeats 1`, 더 작은 세트, 생각 없는 모델로 교체(이 저장소에서 검증한 범위 밖) |
 | 같은 명령인데 실모드 점수가 녹화와 다름 | 모델 비결정성(같은 시드라도 부하에 따라 달라질 수 있음) | 정상입니다. 반복 횟수를 늘리고 `±`를 함께 보세요 |
+| 문구가 원하는 언어가 아님 | `--lang` / `EVALGATE_LANG` / `LANG` 순으로 결정 | `--lang en` 또는 `--lang ko`를 주거나 `EVALGATE_LANG`을 설정("화면 언어 바꾸기" 참고) |
 | 판정에 `parse_error` | 심판 응답이 비었거나 형식이 아님 | 점수 0으로 처리됨(의도). `max_tokens`·컨텍스트 길이를 늘려 다시 녹화 |
 
 ## 한계
