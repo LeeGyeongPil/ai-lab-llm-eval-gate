@@ -248,7 +248,7 @@ uv run --no-project --python 3.14 python -m evalgate.cli baseline               
 | [`src/evalgate/gate.py`](src/evalgate/gate.py) | 게이트 판정(약 40줄) |
 | [`src/evalgate/i18n.py`](src/evalgate/i18n.py) | 영어·한국어 메시지 표와 언어 선택 |
 | [`src/evalgate/report.py`](src/evalgate/report.py) | 외부 요청 없는 단일 HTML 보고서 |
-| [`tests/`](tests) | 단위 · 엔드투엔드 테스트 102개 (영어·한국어 메시지 표 일치 검사 포함) |
+| [`tests/`](tests) | 단위 · 엔드투엔드 테스트 106개 (영어·한국어 메시지 표 일치 검사 포함) |
 
 **핵심 1. 게이트는 숫자 비교입니다.** 하한과 비교하고, 기준선 대비 하락폭과 비교하고, 이유 문장을 모아 돌려줍니다. 비어 있으면 통과입니다.
 

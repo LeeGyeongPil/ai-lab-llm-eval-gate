@@ -253,7 +253,7 @@ A full correspondence table with the big tools (promptfoo · Inspect) is in [doc
 | [`src/evalgate/gate.py`](src/evalgate/gate.py) | Gate verdict (about 40 lines) |
 | [`src/evalgate/i18n.py`](src/evalgate/i18n.py) | English/Korean message table and language selection |
 | [`src/evalgate/report.py`](src/evalgate/report.py) | A single HTML report with no external requests |
-| [`tests/`](tests) | 102 unit and end-to-end tests (including English/Korean message-table parity) |
+| [`tests/`](tests) | 106 unit and end-to-end tests (including English/Korean message-table parity) |
 
 **Key 1. The gate is a number comparison.** It compares with the floor, compares the drop versus the baseline, collects the reason sentences and returns them. If the list is empty, it passes.
 
