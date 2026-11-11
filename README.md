@@ -1,5 +1,7 @@
 # evalgate — 프롬프트를 고칠 때마다 자동으로 채점하고, 점수가 떨어지면 CI를 빨갛게 만드는 작은 도구
 
+**한국어** | [English](README.en.md)
+
 > **English summary** — evalgate is a tiny, dependency-free Python tool that scores an LLM prompt against a small test set (exact / regex / contains / embedding similarity / LLM judge) and fails CI when scores drop below a floor or fall too far from a saved baseline. `uv run evalgate demo` runs fully offline by replaying recorded model answers, and shows a deliberately broken prompt turning the gate red.
 
 ![evalgate demo 실행 화면: 프롬프트 세 개의 점수표와 게이트 PASS/PASS/FAIL](docs/images/01-demo-terminal.png)
