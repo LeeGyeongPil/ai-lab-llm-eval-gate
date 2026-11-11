@@ -1,14 +1,19 @@
 """화면 언어(en/ko): 메시지 표 일치, 언어 결정 순서, CLI·오류·보고서의 언어 전환, 불변 항목."""
 
 import json
+import os
 import re
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
-from evalgate import cli
+from evalgate import cli, gate
 from evalgate.i18n import MESSAGES, LocalizedError, placeholders, resolve_lang, t
 
 HANGUL = re.compile("[가-힣]")
+ROOT = Path(__file__).resolve().parent.parent
 
 
 # ── 메시지 표 ─────────────────────────────────────────────────
@@ -286,3 +291,31 @@ def test_json_keys_and_exit_codes_do_not_change_with_language(project, capsys):
 def test_cassette_hashes_do_not_depend_on_language(project, capsys):
     """심판 프롬프트·요청 해시는 번역 대상이 아니다: 영어로 돌려도 녹화에서 전부 찾힌다(exit 0)."""
     assert cli.main(["--lang", "en", "run", "--prompt", "prompts/baseline.txt", "--gate"]) == 0
+
+
+# ── CI 러너 로캘 회귀(0.2.1) ──────────────────────────────────
+
+def test_language_is_pinned_even_without_project_fixture():
+    """project 픽스처를 쓰지 않는 테스트도 호스트 LANG 과 무관하게 ko 로 고정된다(conftest 의 autouse 픽스처)."""
+    assert resolve_lang() == "ko"
+    assert gate.evaluate(_one_metric(0.25), {}, {"min_scores": {"m": 0.85}}) == ["지표 m: 0.25 < 하한 0.85"]
+
+
+@pytest.mark.parametrize("locale", ["C.UTF-8", "en_US.UTF-8", "C"])
+def test_unit_tests_pass_under_ci_runner_locale(locale):
+    """GitHub 러너처럼 LANG 이 한국어가 아니고 EVALGATE_LANG 이 없어도 단위 테스트가 통과해야 한다.
+
+    0.2.0 에서는 언어 고정이 project 픽스처에만 있어 개발 PC(LANG=ko_KR.UTF-8)에서만 통과하고 CI 에서 3개가 실패했다.
+    """
+    env = {k: v for k, v in os.environ.items() if k not in ("EVALGATE_LANG", "LC_ALL", "LC_MESSAGES", "LANG")}
+    env["LANG"] = locale
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests/test_stats.py", "tests/test_scorers.py"],
+        cwd=ROOT, env=env, capture_output=True, text=True, timeout=300,
+    )
+    assert proc.returncode == 0, proc.stdout[-2000:] + proc.stderr[-2000:]
+
+
+def _one_metric(mean):
+    return {"metrics": {"m": {"mean": mean, "se": 0.0, "n": 1}}}

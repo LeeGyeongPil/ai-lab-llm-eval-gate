@@ -11,6 +11,19 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 
 
+@pytest.fixture(autouse=True)
+def pinned_language(monkeypatch):
+    """모든 테스트의 출력 언어를 호스트 로캘과 무관하게 ko 로 고정한다.
+
+    project 픽스처를 쓰지 않는 단위 테스트(test_stats·test_scorers 등)도 사용자 문구를 비교한다.
+    고정하지 않으면 개발 PC(LANG=ko_KR.UTF-8)에서는 통과하고 CI 러너(LANG=C.UTF-8)에서는 영어 문구가 나와 실패한다.
+    GITHUB_ACTIONS·GITHUB_STEP_SUMMARY 도 CI 에서만 켜지므로 함께 비운다(필요한 테스트가 직접 켠다).
+    """
+    for var in ("LC_ALL", "LC_MESSAGES", "LANG", "GITHUB_ACTIONS", "GITHUB_STEP_SUMMARY"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("EVALGATE_LANG", "ko")
+
+
 @pytest.fixture
 def project(tmp_path, monkeypatch):
     """저장소의 설정·평가 세트·프롬프트·녹화·기준선을 임시 폴더에 복사하고 그 안으로 이동한다(보고서가 저장소를 어지럽히지 않도록)."""
