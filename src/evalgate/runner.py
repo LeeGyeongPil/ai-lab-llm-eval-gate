@@ -8,6 +8,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from .i18n import t
 from .scorers import run_scorer
 
 
@@ -15,7 +16,7 @@ def read_prompt(path: str | Path) -> str:
     return Path(path).read_text(encoding="utf-8").strip()
 
 
-def run_sample(cfg: dict, provider, prompt: str, case: dict, repeat: int) -> dict:
+def run_sample(cfg: dict, provider, prompt: str, case: dict, repeat: int, lang: str | None = None) -> dict:
     """샘플 하나: 답변 생성 → 케이스가 지정한 채점기 모두 실행."""
     m = cfg["model"]
     request = {
@@ -25,22 +26,22 @@ def run_sample(cfg: dict, provider, prompt: str, case: dict, repeat: int) -> dic
         "seed": int(m["seed"]) + repeat,  # 반복마다 다른 고정 시드
         "max_tokens": m["max_tokens"],
     }
-    answer = provider.chat(request, repeat=repeat, label=f"{case['id']} 반복{repeat + 1} 생성")
-    ctx = {"cfg": cfg, "provider": provider, "repeat": repeat}
+    answer = provider.chat(request, repeat=repeat, label=t("label_generate", lang, case=case["id"], n=repeat + 1))
+    ctx = {"cfg": cfg, "provider": provider, "repeat": repeat, "lang": lang}
     scores = {name: run_scorer(name, case, answer, ctx) for name in case["scorers"]}
     return {"case": case["id"], "repeat": repeat, "answer": answer, "scores": scores}
 
 
-def run_all(cfg: dict, provider, prompt: str, cases: list[dict], repeats: int, progress: bool = False) -> list[dict]:
+def run_all(cfg: dict, provider, prompt: str, cases: list[dict], repeats: int, progress: bool = False, lang: str | None = None) -> list[dict]:
     jobs = [(c, r) for c in cases for r in range(repeats)]
     done = 0
 
     def work(job):
         nonlocal done
-        sample = run_sample(cfg, provider, prompt, *job)
+        sample = run_sample(cfg, provider, prompt, *job, lang=lang)
         if progress:  # 실모드는 느리므로 한 샘플 끝날 때마다 알린다
             done += 1
-            print(f"  [{done}/{len(jobs)}] {job[0]['id']} 반복{job[1] + 1} 완료", file=sys.stderr, flush=True)
+            print(t("progress", lang, done=done, total=len(jobs), case=job[0]["id"], n=job[1] + 1), file=sys.stderr, flush=True)
         return sample
 
     workers = max(1, int(cfg["run"]["workers"]))

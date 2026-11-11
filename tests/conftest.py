@@ -24,6 +24,10 @@ def project(tmp_path, monkeypatch):
     for var in ("EVALGATE_MODE", "EVALGATE_BASE_URL", "EVALGATE_API_KEY", "EVALGATE_MODEL", "EVALGATE_JUDGE_MODEL",
                 "EVALGATE_EMBED_MODEL", "EVALGATE_WORKERS", "EVALGATE_TIMEOUT", "GITHUB_ACTIONS", "GITHUB_STEP_SUMMARY"):
         monkeypatch.delenv(var, raising=False)
+    # 기존 테스트의 기대 문구는 한국어다 — 언어 결정 입력을 모두 비우고 EVALGATE_LANG=ko 로 고정한다
+    for var in ("LC_ALL", "LC_MESSAGES", "LANG"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("EVALGATE_LANG", "ko")
     return tmp_path
 
 

@@ -17,10 +17,11 @@ import urllib.request
 from pathlib import Path
 
 from . import __version__
+from .i18n import LocalizedError
 
 
-class ProviderError(Exception):
-    """호출 실패(연결·시간 초과·응답 형식 오류). CLI 에서 exit 2."""
+class ProviderError(LocalizedError):
+    """호출 실패(연결·시간 초과·응답 형식 오류). CLI 에서 exit 2. 메시지는 코드+파라미터."""
 
 
 class CassetteMiss(ProviderError):
@@ -65,11 +66,7 @@ class CassetteProvider:
         key = request_key(kind, request, repeat)
         entry = self.entries.get(key)
         if entry is None:
-            raise CassetteMiss(
-                f"녹화에 없는 요청입니다: {label or kind} (key {key[:12]}, 녹화 파일 {self.path.name}).\n"
-                f"  프롬프트·모델·설정을 바꿨다면 실모델로 녹화한 뒤 녹화 파일을 함께 커밋하세요:\n"
-                f"  PYTHONPATH=src uv run --no-project --python 3.14 python -m evalgate.cli run --mode record --prompt <프롬프트 파일>"
-            )
+            raise CassetteMiss("cassette_miss", label=label or kind, key=key[:12], file=self.path.name)
         return entry["response"]
 
     def chat(self, request: dict, repeat: int = 0, label: str = "") -> str:
@@ -101,13 +98,13 @@ class HttpProvider:
             except urllib.error.HTTPError as e:
                 e.close()
                 if e.code < 500:  # 4xx 는 다시 해도 소용없다
-                    raise ProviderError(f"HTTP {e.code}: {self.base_url}{path} (모델 이름·키를 확인하세요)") from e
+                    raise ProviderError("http_error", code=e.code, url=f"{self.base_url}{path}") from e
                 last = e
             except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
                 last = e
             if attempt < self.RETRIES:
                 time.sleep(2 * (attempt + 1))
-        raise ProviderError(f"호출 실패: {self.base_url}{path} — {last} (Ollama 가 켜져 있는지, 모델을 받았는지 확인하세요)") from last
+        raise ProviderError("call_failed", url=f"{self.base_url}{path}", error=str(last)) from last
 
     def chat(self, request: dict, repeat: int = 0, label: str = "") -> str:
         data = self._post("/chat/completions", request)
@@ -115,14 +112,14 @@ class HttpProvider:
             # content 에는 최종 답만 온다(생각은 message.reasoning 으로 분리). 혹시 섞여 오면 strip_think 가 처리한다.
             return strip_think(data["choices"][0]["message"].get("content") or "")
         except (KeyError, IndexError, TypeError) as e:
-            raise ProviderError(f"예상과 다른 응답 형식입니다({label or 'chat'}): {str(data)[:200]}") from e
+            raise ProviderError("bad_response", label=label or "chat", body=str(data)[:200]) from e
 
     def embed(self, request: dict, label: str = "") -> list[float]:
         data = self._post("/embeddings", request)
         try:
             return [round(x, 6) for x in data["data"][0]["embedding"]]  # 소수 6자리로 줄여 녹화 파일 크기를 줄인다
         except (KeyError, IndexError, TypeError) as e:
-            raise ProviderError(f"예상과 다른 임베딩 응답 형식입니다({label or 'embed'})") from e
+            raise ProviderError("bad_embed_response", label=label or "embed") from e
 
 
 class RecordingProvider:

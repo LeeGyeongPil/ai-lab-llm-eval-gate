@@ -9,9 +9,11 @@
 import json
 from pathlib import Path
 
+from .i18n import LocalizedError
 
-class DatasetError(Exception):
-    pass
+
+class DatasetError(LocalizedError):
+    """평가 세트 오류 (메시지 코드+파라미터)."""
 
 
 def load_cases(path: str | Path, scorer_names: set[str]) -> list[dict]:
@@ -24,18 +26,18 @@ def load_cases(path: str | Path, scorer_names: set[str]) -> list[dict]:
             try:
                 case = json.loads(line)
             except json.JSONDecodeError as e:
-                raise DatasetError(f"{path}:{lineno} JSON 오류: {e}") from e
+                raise DatasetError("ds_json", path=str(path), line=lineno, error=str(e)) from e
             for field in ("id", "input", "scorers"):
                 if field not in case:
-                    raise DatasetError(f"{path}:{lineno} 필수 필드 없음: {field}")
+                    raise DatasetError("ds_field", path=str(path), line=lineno, field=field)
             case.setdefault("expected", {})
             if case["id"] in seen:
-                raise DatasetError(f"{path}:{lineno} id 중복: {case['id']}")
+                raise DatasetError("ds_dup", path=str(path), line=lineno, id=case["id"])
             seen.add(case["id"])
             unknown = [s for s in case["scorers"] if s not in scorer_names]
             if unknown:
-                raise DatasetError(f"{path}:{lineno} 정의되지 않은 채점기: {unknown} (evalgate.toml [scorers.*] 확인)")
+                raise DatasetError("ds_unknown_scorer", path=str(path), line=lineno, names=str(unknown))
             cases.append(case)
     if not cases:
-        raise DatasetError(f"{path}: 케이스가 없습니다")
+        raise DatasetError("ds_empty", path=str(path))
     return cases

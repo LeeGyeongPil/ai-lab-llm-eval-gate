@@ -13,6 +13,8 @@ import math
 import re
 import unicodedata
 
+from .i18n import LocalizedError, t
+
 NORM_DROP = set("*_`~")  # Markdown 강조 기호
 
 
@@ -28,13 +30,17 @@ def normalize(text: str) -> str:
     return "".join(out)
 
 
+class ScorerError(LocalizedError, KeyError):
+    """채점 설정 오류(기대값 없음·알 수 없는 type). KeyError 를 겸해 기존 except KeyError 도 계속 잡힌다."""
+
+
 def _expected(scorer: dict, case: dict, key: str = "expected") -> str:
     """채점기 설정이 가리키는 케이스의 기대값을 꺼낸다. 없으면 설정 오류로 알린다."""
     field = scorer[key]
     try:
         return str(case["expected"][field])
     except KeyError as e:
-        raise KeyError(f"케이스 {case['id']} 의 expected.{field} 가 없습니다") from e
+        raise ScorerError("sc_expected_missing", case=case["id"], field=field) from e
 
 
 def score_exact(scorer, case, answer, ctx):
@@ -42,7 +48,7 @@ def score_exact(scorer, case, answer, ctx):
     if scorer.get("extract"):
         m = re.search(scorer["extract"], answer)
         if not m:
-            return 0.0, "추출 실패(정규식이 맞지 않음)"
+            return 0.0, t("sc_extract_fail", ctx.get("lang"))
         got = m.group(1)
     want = _expected(scorer, case)
     ok = normalize(got) == normalize(want)
@@ -51,13 +57,13 @@ def score_exact(scorer, case, answer, ctx):
 
 def score_regex(scorer, case, answer, ctx):
     ok = re.search(scorer["pattern"], answer) is not None
-    return (1.0 if ok else 0.0), ("형식 일치" if ok else "형식 불일치")
+    return (1.0 if ok else 0.0), t("sc_regex_ok" if ok else "sc_regex_no", ctx.get("lang"))
 
 
 def score_contains(scorer, case, answer, ctx):
     want = _expected(scorer, case)
     ok = normalize(want) in normalize(answer)
-    return (1.0 if ok else 0.0), f"{want!r} {'포함' if ok else '없음'}"
+    return (1.0 if ok else 0.0), t("sc_contains_yes" if ok else "sc_contains_no", ctx.get("lang"), want=want)
 
 
 def cosine(a: list[float], b: list[float]) -> float:
@@ -69,14 +75,15 @@ def cosine(a: list[float], b: list[float]) -> float:
 def score_similarity(scorer, case, answer, ctx):
     text = re.sub(scorer["strip"], "", answer).strip() if scorer.get("strip") else answer.strip()
     if not text:
-        return 0.0, "빈 답변"
+        return 0.0, t("sc_empty", ctx.get("lang"))
     model = ctx["cfg"]["model"]["embed"]
-    label = f"{case['id']} 임베딩"
+    lang = ctx.get("lang")
+    label = t("label_embed", lang, case=case["id"])
     # 텍스트마다 따로 요청해야 같은 기준 문장의 임베딩이 녹화에서 재사용된다
-    va = ctx["provider"].embed({"model": model, "input": text}, label=label + "(답변)")
-    vb = ctx["provider"].embed({"model": model, "input": _expected(scorer, case, "reference")}, label=label + "(기준)")
+    va = ctx["provider"].embed({"model": model, "input": text}, label=label + t("label_answer", lang))
+    vb = ctx["provider"].embed({"model": model, "input": _expected(scorer, case, "reference")}, label=label + t("label_reference", lang))
     cos = cosine(va, vb)
-    return (1.0 if cos >= scorer["threshold"] else 0.0), f"cos={cos:.3f} (임계 {scorer['threshold']})"
+    return (1.0 if cos >= scorer["threshold"] else 0.0), t("sc_cos", lang, cos=f"{cos:.3f}", threshold=scorer["threshold"])
 
 
 JUDGE_PROMPT = """너는 채점자다. 고객 문의, 정책 사실, 봇의 답변을 보고 답변이 정책 사실과 맞는지 판정하라.
@@ -109,7 +116,7 @@ def parse_judge(text: str) -> tuple[float, str]:
 
 def score_judge(scorer, case, answer, ctx):
     if not answer.strip():
-        return 0.0, "FAIL: 빈 답변"
+        return 0.0, "FAIL: " + t("sc_empty", ctx.get("lang"))
     m = ctx["cfg"]["model"]
     prompt = JUDGE_PROMPT.format(
         question=case["input"], facts=_expected(scorer, case, "criteria"),
@@ -119,7 +126,7 @@ def score_judge(scorer, case, answer, ctx):
         "temperature": m["temperature"], "top_p": m["top_p"],
         "seed": int(m["judge_seed"]) + ctx["repeat"], "max_tokens": m["max_tokens"],
     }
-    text = ctx["provider"].chat(request, repeat=ctx["repeat"], label=f"{case['id']} 반복{ctx['repeat'] + 1} 심판")
+    text = ctx["provider"].chat(request, repeat=ctx["repeat"], label=t("label_judge", ctx.get("lang"), case=case["id"], n=ctx["repeat"] + 1))
     return parse_judge(text)
 
 
@@ -131,6 +138,6 @@ def run_scorer(name: str, case: dict, answer: str, ctx: dict) -> dict:
     scorer = ctx["cfg"]["scorers"][name]
     fn = SCORERS.get(scorer["type"])
     if fn is None:
-        raise KeyError(f"알 수 없는 채점기 type: {scorer['type']} ({name})")
+        raise ScorerError("sc_unknown_type", type=scorer["type"], name=name)
     score, detail = fn(scorer, case, answer, ctx)
     return {"score": score, "detail": detail}

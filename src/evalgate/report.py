@@ -6,35 +6,38 @@ HTML 의 주요 구역 id: #summary(지표 카드) · #chart(막대 그래프) �
 
 from html import escape as esc
 
+from .i18n import resolve_lang, t
+
 SERIES = ["s1", "s2", "s3", "s4"]  # 프롬프트마다 CSS 변수 색 하나
 DETERMINISTIC = {"exact", "regex", "contains"}
 
 
-def _fmt_delta(c: dict | None) -> tuple[str, str]:
+def _fmt_delta(c: dict | None, lang: str) -> tuple[str, str]:
     """기준선 대비 변화 → (문구, css 클래스). 색에만 기대지 않도록 ▲▼ 기호와 말을 같이 쓴다."""
     if not c:
-        return "기준선 없음", "flat"
+        return t("html_no_baseline", lang), "flat"
     if c["same"]:
-        return "= 기준선과 같음", "flat"
+        return t("html_same", lang), "flat"
     arrow = "▲" if c["delta"] > 0 else "▼"
-    text = f"{arrow} {c['delta']:+.2f} (기준선 {c['baseline']:.2f})"
+    text = t("html_delta", lang, arrow=arrow, delta=f"{c['delta']:+.2f}", baseline=f"{c['baseline']:.2f}")
     if c["noise"]:
-        return text + " · 잡음 범위", "flat"
+        return text + t("html_noise", lang), "flat"
     return text, ("up" if c["delta"] > 0 else "down")
 
 
-def _metric_cards(r: dict, gate_cfg: dict) -> str:
+def _metric_cards(r: dict, gate_cfg: dict, lang: str) -> str:
     floors = gate_cfg.get("min_scores", {})
     cards = []
     for m, s in r["summary"]["metrics"].items():
-        delta_text, delta_cls = _fmt_delta(r["comparison"]["metrics"].get(m))
+        delta_text, delta_cls = _fmt_delta(r["comparison"]["metrics"].get(m), lang)
         floor = floors.get(m)
         floor_html = ""
         if floor is not None:
             ok = s["mean"] >= floor
-            floor_html = f'<div class="floor {"ok" if ok else "ng"}">하한 {floor:.2f} {"충족" if ok else "미달"}</div>'
+            state = t("html_floor_met" if ok else "html_floor_missed", lang)
+            floor_html = f'<div class="floor {"ok" if ok else "ng"}">{esc(t("html_floor", lang, floor=f"{floor:.2f}", state=state))}</div>'
         else:
-            floor_html = '<div class="floor">참고용 지표(게이트 제외)</div>'
+            floor_html = f'<div class="floor">{esc(t("html_info_metric", lang))}</div>'
         cards.append(
             f'<div class="metric"><div class="mname">{esc(m)}</div>'
             f'<div class="mval">{s["mean"]:.2f}<span class="se"> ± {s["se"]:.2f}</span></div>'
@@ -42,14 +45,14 @@ def _metric_cards(r: dict, gate_cfg: dict) -> str:
     return "".join(cards)
 
 
-def _chart(results: list[dict]) -> str:
+def _chart(results: list[dict], lang: str) -> str:
     """지표별 묶음 막대 그래프(SVG). 막대 위에 값을 직접 적는다."""
     metrics = list(results[0]["summary"]["metrics"])
     W, H, L, B, T = 640, 260, 36, 34, 14
     plot_h = H - B - T
     group_w = (W - L - 8) / len(metrics)
     bar_w = min(34, (group_w - 16) / len(results))
-    out = [f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="지표별 평균 점수 막대 그래프" class="chartsvg">']
+    out = [f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{esc(t("html_chart_label", lang))}" class="chartsvg">']
     for g in (0, 0.25, 0.5, 0.75, 1.0):
         y = T + plot_h * (1 - g)
         out.append(f'<line x1="{L}" x2="{W - 8}" y1="{y:.1f}" y2="{y:.1f}" class="grid"/>'
@@ -68,7 +71,7 @@ def _chart(results: list[dict]) -> str:
     return f'<div class="legend">{legend}</div>{"".join(out)}'
 
 
-def _case_rows(r: dict) -> str:
+def _case_rows(r: dict, lang: str) -> str:
     types = r.get("scorer_types", {})
     samples: dict[str, list[dict]] = {}
     for s in r["samples"]:
@@ -78,35 +81,35 @@ def _case_rows(r: dict) -> str:
         flips = r["comparison"]["cases"].get(c["id"], {})
         badges = []
         if "new_fail" in flips.values():
-            badges.append('<span class="badge new-fail">새로 실패</span>')
+            badges.append(f'<span class="badge new-fail">{esc(t("html_new_fail", lang))}</span>')
         if "new_pass" in flips.values():
-            badges.append('<span class="badge new-pass">새로 통과</span>')
+            badges.append(f'<span class="badge new-pass">{esc(t("html_new_pass", lang))}</span>')
         blocks, disagree = [], False
         for s in samples.get(c["id"], []):
             chips, det_fail, judge_pass, det_pass, judge_fail = [], False, False, False, False
             for m, sc in s["scores"].items():
                 ok = sc["score"] >= 0.5
                 chips.append(f'<span class="chip {"ok" if ok else "ng"}" title="{esc(sc["detail"])}">{"✓" if ok else "✗"} {esc(m)}</span>')
-                t = types.get(m)
-                if t in DETERMINISTIC:
+                stype = types.get(m)
+                if stype in DETERMINISTIC:
                     det_fail |= not ok
                     det_pass |= ok
-                if t == "judge":
+                if stype == "judge":
                     judge_pass |= ok
                     judge_fail |= not ok
             disagree |= (det_fail and judge_pass) or (det_pass and judge_fail)
             reason = next((sc["detail"] for m, sc in s["scores"].items() if types.get(m) == "judge"), "")
             blocks.append(
-                f'<div class="rep"><div class="replabel">반복 {s["repeat"] + 1}</div>'
-                f'<div class="ans">{esc(s["answer"]) or "(빈 답변)"}</div>'
+                f'<div class="rep"><div class="replabel">{esc(t("html_repeat", lang, n=s["repeat"] + 1))}</div>'
+                f'<div class="ans">{esc(s["answer"]) or esc(t("html_empty_answer", lang))}</div>'
                 f'<div class="chips">{"".join(chips)}</div>'
-                + (f'<div class="reason">심판: {esc(reason)}</div>' if reason else "") + "</div>")
+                + (f'<div class="reason">{esc(t("html_judge", lang, reason=reason))}</div>' if reason else "") + "</div>")
         if disagree:
-            badges.append('<span class="badge split" title="결정적 채점기와 심판의 판정이 갈렸습니다">채점기 불일치</span>')
+            badges.append(f'<span class="badge split" title="{esc(t("html_split_title", lang))}">{esc(t("html_split", lang))}</span>')
         rows.append(
             f'<tr class="case-row" id="{esc(r["name"])}-{esc(c["id"])}">'
-            f'<td data-label="케이스"><strong>{esc(c["id"])}</strong><div class="q">{esc(c["input"])}</div>{"".join(badges)}</td>'
-            f'<td data-label="답변과 채점">{"".join(blocks)}</td></tr>')
+            f'<td data-label="{esc(t("html_th_case", lang))}"><strong>{esc(c["id"])}</strong><div class="q">{esc(c["input"])}</div>{"".join(badges)}</td>'
+            f'<td data-label="{esc(t("html_th_answer", lang))}">{"".join(blocks)}</td></tr>')
     return "".join(rows)
 
 
@@ -158,49 +161,52 @@ th:first-child,td:first-child{width:30%}
 """
 
 
-def render_html(results: list[dict], gate_cfg: dict) -> str:
+def render_html(results: list[dict], gate_cfg: dict, lang: str | None = None) -> str:
+    """정적 HTML 보고서. 언어는 생성 시점에 고정된다(페이지 안 전환 메뉴 없음)."""
+    lang = lang or resolve_lang()
     head = results[0]
     cards = []
     for j, r in enumerate(results):
         gate = r["gate"]
         fails = ""
         if gate["failures"]:
-            fails = '<div class="fails"><strong>게이트 실패 이유</strong><ul>' + "".join(f"<li>{esc(f)}</li>" for f in gate["failures"]) + "</ul></div>"
+            fails = f'<div class="fails"><strong>{esc(t("html_fail_title", lang))}</strong><ul>' + "".join(f"<li>{esc(f)}</li>" for f in gate["failures"]) + "</ul></div>"
         cards.append(
             f'<div class="run-card" id="run-{esc(r["name"])}"><div class="run-head">'
             f'<span class="sw {SERIES[j % 4]}"></span><span class="name">{esc(r["prompt_file"])}</span>'
-            f'<span class="gate {"pass" if gate["passed"] else "fail"}">게이트 {"PASS" if gate["passed"] else "FAIL"}</span></div>'
-            f'<div class="metrics">{_metric_cards(r, gate_cfg)}</div>{fails}</div>')
+            f'<span class="gate {"pass" if gate["passed"] else "fail"}">{esc(t("html_gate_badge", lang, state="PASS" if gate["passed"] else "FAIL"))}</span></div>'
+            f'<div class="metrics">{_metric_cards(r, gate_cfg, lang)}</div>{fails}</div>')
     cases = "".join(
-        f'<details {"open" if j == len(results) - 1 or len(results) == 1 else ""} id="cases-{esc(r["name"])}"><summary>{esc(r["prompt_file"])} — 케이스별 답변과 채점</summary>'
-        f'<table><thead><tr><th>케이스</th><th>답변과 채점</th></tr></thead><tbody>{_case_rows(r)}</tbody></table></details>'
+        f'<details {"open" if j == len(results) - 1 or len(results) == 1 else ""} id="cases-{esc(r["name"])}"><summary>{esc(t("html_case_summary", lang, file=r["prompt_file"]))}</summary>'
+        f'<table><thead><tr><th>{esc(t("html_th_case", lang))}</th><th>{esc(t("html_th_answer", lang))}</th></tr></thead><tbody>{_case_rows(r, lang)}</tbody></table></details>'
         for j, r in enumerate(results))
     return f"""<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>evalgate 보고서</title><style>{CSS}</style></head><body><main>
-<h1>evalgate 평가 보고서</h1>
-<div class="meta">모드 {esc(head["mode"])} · 모델 {esc(head["model"])} · 심판 {esc(head["judge_model"])} · 케이스 {len(head["cases"])}개 × 반복 {head["repeats"]}회 · 표기: 평균 ± 표준오차</div>
-<section id="summary"><h2>지표 요약</h2>{"".join(cards)}</section>
-<section id="chart"><h2>지표별 점수</h2><div class="chartwrap">{_chart(results)}</div></section>
-<section id="cases"><h2>케이스별 결과</h2>{cases}</section>
+<html lang="{t("html_lang", lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{esc(t("html_title", lang))}</title><style>{CSS}</style></head><body><main>
+<h1>{esc(t("html_h1", lang))}</h1>
+<div class="meta">{esc(t("html_meta", lang, mode=head["mode"], model=head["model"], judge=head["judge_model"], cases=len(head["cases"]), repeats=head["repeats"]))}</div>
+<section id="summary"><h2>{esc(t("html_h_summary", lang))}</h2>{"".join(cards)}</section>
+<section id="chart"><h2>{esc(t("html_h_chart", lang))}</h2><div class="chartwrap">{_chart(results, lang)}</div></section>
+<section id="cases"><h2>{esc(t("html_h_cases", lang))}</h2>{cases}</section>
 </main></body></html>
 """
 
 
-def render_markdown(results: list[dict], gate_cfg: dict) -> str:
+def render_markdown(results: list[dict], gate_cfg: dict, lang: str | None = None) -> str:
     """GitHub step summary 용 Markdown: 지표 × 프롬프트 표 + 게이트 결과."""
+    lang = lang or resolve_lang()
     names = [r["name"] for r in results]
-    lines = ["### evalgate 결과", "", "| 지표 | " + " | ".join(names) + " |", "|---|" + "---|" * len(names)]
+    lines = [t("md_title", lang), "", f"| {t('md_metric', lang)} | " + " | ".join(names) + " |", "|---|" + "---|" * len(names)]
     for m in results[0]["summary"]["metrics"]:
         cells = []
         for r in results:
             s, c = r["summary"]["metrics"][m], r["comparison"]["metrics"].get(m)
             cell = f"{s['mean']:.2f} ± {s['se']:.2f}"
             if c and not c["same"]:
-                cell += f" ({'▲' if c['delta'] > 0 else '▼'}{abs(c['delta']):.2f}{', 잡음' if c['noise'] else ''})"
+                cell += f" ({'▲' if c['delta'] > 0 else '▼'}{abs(c['delta']):.2f}{t("md_noise", lang) if c['noise'] else ''})"
             cells.append(cell)
         lines.append(f"| {m} | " + " | ".join(cells) + " |")
-    lines.append("| 게이트 | " + " | ".join("PASS" if r["gate"]["passed"] else "**FAIL**" for r in results) + " |")
+    lines.append(f"| {t('md_gate', lang)} | " + " | ".join("PASS" if r["gate"]["passed"] else "**FAIL**" for r in results) + " |")
     for r in results:
         for f in r["gate"]["failures"]:
             lines.append(f"- `{r['name']}`: {f}")

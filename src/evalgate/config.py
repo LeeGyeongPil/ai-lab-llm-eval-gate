@@ -8,6 +8,8 @@ import os
 import tomllib
 from pathlib import Path
 
+from .i18n import LocalizedError
+
 # 환경변수 이름 → (섹션, 키, 형변환)
 ENV_MAP = {
     "EVALGATE_MODE": ("run", "mode", str),
@@ -21,8 +23,8 @@ ENV_MAP = {
 }
 
 
-class ConfigError(Exception):
-    """설정 파일·값 오류 (CLI 에서 exit 2 로 바뀐다)."""
+class ConfigError(LocalizedError):
+    """설정 파일·값 오류 (CLI 에서 exit 2 로 바뀐다). 메시지는 코드+파라미터로 들고 다닌다."""
 
 
 def load_config(path: str | Path = "evalgate.toml", overrides: dict | None = None) -> dict:
@@ -33,7 +35,7 @@ def load_config(path: str | Path = "evalgate.toml", overrides: dict | None = Non
     """
     path = Path(path)
     if not path.is_file():
-        raise ConfigError(f"설정 파일이 없습니다: {path}")
+        raise ConfigError("cfg_missing", path=str(path))
     with path.open("rb") as f:
         cfg = tomllib.load(f)
     for section in ("run", "model", "scorers", "gate"):
@@ -45,7 +47,7 @@ def load_config(path: str | Path = "evalgate.toml", overrides: dict | None = Non
             try:
                 cfg[section][key] = cast(value)
             except ValueError as e:
-                raise ConfigError(f"{env_name} 값이 올바르지 않습니다: {value!r}") from e
+                raise ConfigError("cfg_env_bad", name=env_name, value=value) from e
 
     for section, values in (overrides or {}).items():
         for key, value in values.items():
@@ -53,7 +55,7 @@ def load_config(path: str | Path = "evalgate.toml", overrides: dict | None = Non
                 cfg[section][key] = value
 
     if cfg["run"].get("mode") not in ("mock", "real", "record"):
-        raise ConfigError(f"mode 는 mock / real / record 중 하나여야 합니다: {cfg['run'].get('mode')!r}")
+        raise ConfigError("cfg_mode_bad", mode=cfg["run"].get("mode"))
     if not cfg["model"].get("judge"):
         cfg["model"]["judge"] = cfg["model"]["name"]  # 심판 모델 기본값 = 피평가 모델
 
