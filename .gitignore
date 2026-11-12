@@ -32,3 +32,7 @@ outputs/
 
 # evalgate 보고서(재생성 가능)
 reports/
+
+# 촬영 작업 부산물
+shots.json
+docs/shots/
