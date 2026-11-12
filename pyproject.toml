@@ -1,6 +1,6 @@
 [project]
 name = "evalgate"
-version = "0.2.1"
+version = "0.2.2"
 description = "프롬프트를 바꾸면 테스트 세트로 자동 채점하고, 기준보다 떨어지면 CI를 빨갛게 만드는 작은 평가 게이트"
 license = "MIT"
 readme = "README.md"

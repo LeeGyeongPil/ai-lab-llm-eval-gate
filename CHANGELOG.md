@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Documentation: README screenshots are now taken per display language (English in `README.md`, Korean in `README.ko.md`). The tool itself is unchanged.
+
 ## 0.2.1
 
 - Fixed: the test suite failed on machines whose locale is not Korean (for example the GitHub Actions runner, `LANG=C.UTF-8`). Every test now pins the output language, so the suite passes under any `LANG`. The tool's own behaviour is unchanged.
