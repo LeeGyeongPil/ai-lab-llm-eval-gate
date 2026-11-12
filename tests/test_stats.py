@@ -51,3 +51,14 @@ def test_gate_floor_and_drop_messages():
     assert any("지표 m: 0.25 < 하한 0.85" in f for f in fails)
     assert any("허용 하락폭" in f for f in fails)
     assert gate.evaluate(base, stats.compare(base, base), {"min_scores": {"m": 0.85}, "max_drop": 0.2}) == []
+
+
+def test_version_matches_package_metadata():
+    import re
+    from pathlib import Path
+
+    import evalgate
+
+    text = (Path(__file__).resolve().parent.parent / "pyproject.toml").read_text(encoding="utf-8")
+    match = re.search(r'^version\s*=\s*"([^"]+)"', text, re.M)
+    assert match and match.group(1) == evalgate.__version__
