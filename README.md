@@ -92,7 +92,7 @@ There are three exit codes. 0 is pass, 1 is a **gate failure (a score problem)**
 Open `reports/demo.html` in a browser. There is a card for each prompt, and a failed card gets a failure-reason box.
 
 ![Metric summary in the report. Card 1, baseline, is PASS; card 2, regressed, shows FAIL and a failure-reason box](docs/images/04-report-summary.png)
-<sub>1 baseline meets all floors; 2 regressed has a FAIL badge and a red failure-reason box. The `잡음 범위` ("within noise") text on the cards in this screenshot (of a Korean-language report, created by running with `--lang ko`) is the `~` in the Step 1 score table.</sub>
+<sub>1 baseline meets all floors; 2 regressed has a FAIL badge and a red failure-reason box. The `within noise` text on the cards is the `~` in the Step 1 score table. This is the English report (`--lang en`); README.ko.md shows the Korean one.</sub>
 
 ![Grouped bar chart per metric: baseline, improved, regressed](docs/images/05-report-chart.png)
 <sub>A chart comparing the same metrics across prompts side by side. The format and label bars of regressed are barely visible.</sub>
@@ -102,7 +102,7 @@ Open `reports/demo.html` in a browser. There is a card for each prompt, and a fa
 In the case table at the bottom of the report, look at c02 of regressed: the same answer gets different verdicts from different scorers.
 
 ![Case c02: format and label fail, judge and on_topic pass](docs/images/06-report-cases.png)
-<sub>1 The answer "단순 변심 반품 시 배송비는 고객님 부담입니다." ("For a return due to a simple change of mind, shipping is paid by the customer.") does not follow the format instruction (first line "분류: ○○", i.e. "Category: ○○"), so format ✗ and label ✗, yet the judge gives PASS because the content matches the policy. That is why the `채점기 불일치` ("scorer disagreement") and `새로 실패` ("newly failing") badges appear.</sub>
+<sub>1 The answer "단순 변심 반품 시 배송비는 고객님 부담입니다." ("For a return due to a simple change of mind, shipping is paid by the customer.") does not follow the format instruction (first line "분류: ○○", i.e. "Category: ○○"), so format ✗ and label ✗, yet the judge gives PASS because the content matches the policy. That is why the `scorer disagreement` and `newly failing` badges appear. The question and answers are data, so they stay in Korean in the English report too.</sub>
 
 It is an answer with correct content but a wrong format. If you leave the format to the judge alone, you miss this kind of regression. So format and label are handled by deterministic scorers, and policy facts by the judge.
 
@@ -151,7 +151,7 @@ flowchart LR
 Scorers and the gate are set in a single `evalgate.toml`.
 
 ![Scorer definitions and gate rules in evalgate.toml](docs/images/03-config.png)
-<sub>The definitions of 4 scorers (regex · exact · judge · similarity) and the `[gate]` rules. The names (format, label…) are used as is in the case file and in the gate.</sub>
+<sub>An excerpt of the repo's `evalgate.toml`: the definitions of 4 scorers (regex · exact · judge · similarity) and the `[gate]` rules (comments translated; the file in the repo is commented in Korean). The names (format, label…) are used as is in the case file and in the gate.</sub>
 
 ### Change the display language
 
@@ -163,7 +163,7 @@ Everything evalgate prints (table legend, gate messages, errors, `--help`) and t
 
 An invalid `--lang` value stops with exit code 2 and a message. The HTML report is a static file, so its language is fixed when it is generated (`<html lang>` matches); it has no in-page language menu. The Markdown summary and the GitHub step summary use the same language.
 
-What is **not** translated: JSON keys and structure, exit codes (0 / 1 / 2), metric names, `PASS` / `FAIL`, the judge prompt (it is part of the recording's request hash, so changing it would invalidate every recording), and your data (questions, model answers, judge reasons). Note that the free-text sentences stored in `results.json` (`gate.failures`, the `detail` of each score) follow the chosen language, so **decide in CI with the exit code and the numeric fields, not by matching sentences**. The terminal screenshots in this README show the English screens (`--lang en`); the three HTML report screenshots (Steps 3 and 4) are of a Korean-language report (`--lang ko`).
+What is **not** translated: JSON keys and structure, exit codes (0 / 1 / 2), metric names, `PASS` / `FAIL`, the judge prompt (it is part of the recording's request hash, so changing it would invalidate every recording), and your data (questions, model answers, judge reasons). Note that the free-text sentences stored in `results.json` (`gate.failures`, the `detail` of each score) follow the chosen language, so **decide in CI with the exit code and the numeric fields, not by matching sentences**. The screenshots in this README show the English screens (`--lang en`); README.ko.md uses the same scenes in Korean (`--lang ko`).
 
 ## Use it in your own project
 
@@ -253,7 +253,7 @@ A full correspondence table with the big tools (promptfoo · Inspect) is in [doc
 | [`src/evalgate/gate.py`](src/evalgate/gate.py) | Gate verdict (about 40 lines) |
 | [`src/evalgate/i18n.py`](src/evalgate/i18n.py) | English/Korean message table and language selection |
 | [`src/evalgate/report.py`](src/evalgate/report.py) | A single HTML report with no external requests |
-| [`tests/`](tests) | 106 unit and end-to-end tests (including English/Korean message-table parity) |
+| [`tests/`](tests) | 107 unit and end-to-end tests (including English/Korean message-table parity) |
 
 **Key 1. The gate is a number comparison.** It compares with the floor, compares the drop versus the baseline, collects the reason sentences and returns them. If the list is empty, it passes.
 
@@ -299,7 +299,7 @@ elif cur["mean"] < floor:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `Error: Request not in the cassette` (exit code 2) | You changed the prompt, model or settings and that request is not in the recording | After `PYTHONPATH=src uv run --no-project --python 3.14 python -m evalgate.cli run --mode record --prompt <파일>`, commit the recording file together |
+| `Error: Request not in the cassette` (exit code 2) | You changed the prompt, model or settings and that request is not in the recording | After `PYTHONPATH=src uv run --no-project --python 3.14 python -m evalgate.cli run --mode record --prompt <file>`, commit the recording file together |
 | `requires-python` error / odd Python version | Below 3.14, or uv chose another version | `uv python install 3.14` (the repository's `.python-version` is pinned to 3.14) |
 | Connection error in real mode | Ollama is off or the models were not pulled | `ollama serve`, `ollama pull qwen3:4b` and `ollama pull bge-m3`; the address is `EVALGATE_BASE_URL` |
 | Real mode is too slow | A thinking model plus a judge call for every question | `--repeats 1`, a smaller set, swap to a model without thinking (outside the range verified in this repository) |

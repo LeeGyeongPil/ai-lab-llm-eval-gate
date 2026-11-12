@@ -89,17 +89,17 @@ uv run evalgate run --mode mock --prompt prompts/regressed.txt --gate
 
 `reports/demo.html`을 브라우저로 엽니다. 프롬프트마다 카드가 있고, 실패한 카드에는 실패 이유 상자가 붙습니다.
 
-![보고서의 지표 요약. 1번 baseline 카드는 PASS, 2번 regressed 카드는 FAIL과 실패 이유 상자가 보입니다](docs/images/04-report-summary.png)
-<sub>① baseline은 모든 하한을 충족, ② regressed는 FAIL 배지와 빨간 실패 이유 상자. 카드의 `잡음 범위` 문구가 1단계 점수표의 `~`입니다.</sub>
+![보고서의 지표 요약. 1번 baseline 카드는 PASS, 2번 regressed 카드는 FAIL과 실패 이유 상자가 보입니다](docs/images/04-report-summary.ko.png)
+<sub>① baseline은 모든 하한을 충족, ② regressed는 FAIL 배지와 빨간 실패 이유 상자. 한국어 보고서 화면(`--lang ko`)이며, 카드의 `잡음 범위` 문구가 1단계 점수표의 `~`입니다.</sub>
 
-![지표별 묶음 막대 그래프: baseline, improved, regressed](docs/images/05-report-chart.png)
+![지표별 묶음 막대 그래프: baseline, improved, regressed](docs/images/05-report-chart.ko.png)
 <sub>같은 지표를 프롬프트끼리 나란히 비교한 그래프. regressed의 format·label 막대가 거의 보이지 않습니다.</sub>
 
 ### 4단계. 같은 답, 다른 판정 보기
 
 보고서 아래쪽 케이스 표에서 regressed의 c02를 보면, 같은 답에 채점기마다 다른 판정이 나옵니다.
 
-![c02 케이스: format과 label은 실패, judge와 on_topic은 통과](docs/images/06-report-cases.png)
+![c02 케이스: format과 label은 실패, judge와 on_topic은 통과](docs/images/06-report-cases.ko.png)
 <sub>① 답변 "단순 변심 반품 시 배송비는 고객님 부담입니다."는 형식 지시("분류: ○○" 첫 줄)를 안 지켜 format ✗·label ✗인데, 심판은 내용이 정책과 맞다며 PASS를 줍니다. 그래서 `채점기 불일치`·`새로 실패` 배지가 붙습니다.</sub>
 
 내용은 맞지만 형식은 틀린 답입니다. 형식을 심판에게만 맡기면 이런 회귀를 놓칩니다. 그래서 형식·라벨은 결정적 채점기로, 정책 사실은 심판으로 나눠 맡겼습니다.
@@ -149,8 +149,8 @@ flowchart LR
 
 채점기와 게이트는 `evalgate.toml` 하나에서 정합니다.
 
-![evalgate.toml의 채점기 정의와 게이트 규칙](docs/images/03-config.png)
-<sub>채점기 4개(regex · exact · judge · similarity) 정의와 `[gate]` 규칙. 이름(format, label…)이 케이스 파일과 게이트에서 그대로 쓰입니다.</sub>
+![evalgate.toml의 채점기 정의와 게이트 규칙](docs/images/03-config.ko.png)
+<sub>레포 `evalgate.toml`의 일부(주석은 한국어)입니다. 채점기 4개(regex · exact · judge · similarity) 정의와 `[gate]` 규칙. 이름(format, label…)이 케이스 파일과 게이트에서 그대로 쓰입니다.</sub>
 
 ### 화면 언어 바꾸기
 
@@ -162,7 +162,7 @@ evalgate가 출력하는 모든 문구(표 범례, 게이트 메시지, 오류, 
 
 잘못된 `--lang` 값은 메시지와 함께 종료 코드 2로 멈춥니다. HTML 보고서는 정적 파일이라 **생성할 때의 언어로 고정**되고(`<html lang>`도 맞춰짐) 페이지 안에 언어 전환 메뉴는 없습니다. Markdown 요약과 GitHub 단계 요약도 같은 언어로 만들어집니다.
 
-번역하지 **않는** 것: JSON 키와 구조, 종료 코드(0 / 1 / 2), 지표 이름, `PASS` / `FAIL`, 심판 프롬프트(녹화의 요청 해시에 들어가므로 바꾸면 녹화가 전부 무효가 됩니다), 그리고 평가하는 데이터(문의, 모델 답변, 심판 이유). `results.json` 안의 자유 문장(`gate.failures`, 점수별 `detail`)은 선택한 언어로 저장되므로, CI에서는 문장을 비교하지 말고 **종료 코드와 숫자 필드로 판정**하세요. 이 README의 스크린샷은 한국어 화면(`--lang ko`)입니다.
+번역하지 **않는** 것: JSON 키와 구조, 종료 코드(0 / 1 / 2), 지표 이름, `PASS` / `FAIL`, 심판 프롬프트(녹화의 요청 해시에 들어가므로 바꾸면 녹화가 전부 무효가 됩니다), 그리고 평가하는 데이터(문의, 모델 답변, 심판 이유). `results.json` 안의 자유 문장(`gate.failures`, 점수별 `detail`)은 선택한 언어로 저장되므로, CI에서는 문장을 비교하지 말고 **종료 코드와 숫자 필드로 판정**하세요. 이 README의 스크린샷은 모두 한국어 화면(`--lang ko`)이고, README.md는 같은 장면을 영어 화면(`--lang en`)으로 보여 줍니다.
 
 ## 내 프로젝트에 붙이기
 
@@ -248,7 +248,7 @@ uv run --no-project --python 3.14 python -m evalgate.cli baseline               
 | [`src/evalgate/gate.py`](src/evalgate/gate.py) | 게이트 판정(약 40줄) |
 | [`src/evalgate/i18n.py`](src/evalgate/i18n.py) | 영어·한국어 메시지 표와 언어 선택 |
 | [`src/evalgate/report.py`](src/evalgate/report.py) | 외부 요청 없는 단일 HTML 보고서 |
-| [`tests/`](tests) | 단위 · 엔드투엔드 테스트 106개 (영어·한국어 메시지 표 일치 검사 포함) |
+| [`tests/`](tests) | 단위 · 엔드투엔드 테스트 107개 (영어·한국어 메시지 표 일치 검사 포함) |
 
 **핵심 1. 게이트는 숫자 비교입니다.** 하한과 비교하고, 기준선 대비 하락폭과 비교하고, 이유 문장을 모아 돌려줍니다. 비어 있으면 통과입니다.
 
