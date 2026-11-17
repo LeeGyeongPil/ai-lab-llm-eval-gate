@@ -147,7 +147,7 @@ flowchart LR
 
 ### 설정 파일
 
-채점기와 게이트는 `evalgate.toml` 하나에서 정합니다.
+채점기와 게이트는 `evalgate.toml` 하나에서 정합니다. 파일 안에 적은 프롬프트 경로는 그 파일이 있는 폴더 기준이고(그래서 `--config` 로 다른 폴더를 가리켜도 됩니다), `--prompt` 는 현재 폴더 기준입니다. 없는 프롬프트 파일은 종료 코드 2로 끝납니다.
 
 ![evalgate.toml의 채점기 정의와 게이트 규칙](docs/images/03-config.ko.png)
 <sub>레포 `evalgate.toml`의 일부(주석은 한국어)입니다. 채점기 4개(regex · exact · judge · similarity) 정의와 `[gate]` 규칙. 이름(format, label…)이 케이스 파일과 게이트에서 그대로 쓰입니다.</sub>

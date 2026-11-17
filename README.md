@@ -148,7 +148,7 @@ flowchart LR
    If a score is below the floor, or has dropped by more than 0.20 from the baseline, it prints the failure reasons and ends with exit code 1. In GitHub Actions the failure reasons also appear as red `::error` annotations and a score table is attached to the step summary (this README has no screen capture of that after the repository goes public. For now it was checked only with code and tests).
 ### Config file
 
-Scorers and the gate are set in a single `evalgate.toml`.
+Scorers and the gate are set in a single `evalgate.toml`. Prompt paths written inside the file are relative to the folder that contains it (so `--config` can point to another folder); `--prompt` is relative to the current folder. A prompt file that does not exist ends with exit code 2.
 
 ![Scorer definitions and gate rules in evalgate.toml](docs/images/03-config.png)
 <sub>An excerpt of the repo's `evalgate.toml`: the definitions of 4 scorers (regex · exact · judge · similarity) and the `[gate]` rules (comments translated; the file in the repo is commented in Korean). The names (format, label…) are used as is in the case file and in the gate.</sub>
