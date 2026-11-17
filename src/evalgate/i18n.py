@@ -54,8 +54,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "err_lang_missing": "--lang needs a value (choose from en, ko)",
         # --- errors: config / dataset / commands ---
         "cfg_missing": "Config file not found: {path}",
+        "cfg_prompt_missing": "Prompt file not found: {path}",
         "cfg_env_bad": "{name} has an invalid value: {value!r}",
         "cfg_mode_bad": "mode must be one of mock / real / record: {mode!r}",
+        "cfg_int_min": "{name} must be an integer of 1 or more: {value!r}",
         "cfg_results_missing_hint": "Results file not found: {path} (run evalgate run first)",
         "cfg_results_missing": "Results file not found: {path}",
         "cfg_multi_results": "A multi-prompt results file cannot be used with gate (pass a single run result)",
@@ -167,8 +169,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "err_lang_missing": "--lang 에 값이 필요합니다 (en, ko 중 하나)",
         # --- errors: config / dataset / commands ---
         "cfg_missing": "설정 파일이 없습니다: {path}",
+        "cfg_prompt_missing": "프롬프트 파일이 없습니다: {path}",
         "cfg_env_bad": "{name} 값이 올바르지 않습니다: {value!r}",
         "cfg_mode_bad": "mode 는 mock / real / record 중 하나여야 합니다: {mode!r}",
+        "cfg_int_min": "{name} 은(는) 1 이상의 정수여야 합니다: {value!r}",
         "cfg_results_missing_hint": "결과 파일이 없습니다: {path} (먼저 evalgate run 을 실행하세요)",
         "cfg_results_missing": "결과 파일이 없습니다: {path}",
         "cfg_multi_results": "여러 프롬프트 결과 파일은 gate 에 쓸 수 없습니다(run 결과를 지정하세요)",

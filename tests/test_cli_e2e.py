@@ -56,6 +56,23 @@ def test_missing_cassette_is_exit_2(project, capsys):
     assert "녹화에 없는 요청" in err and "--mode record" in err
 
 
+@pytest.mark.parametrize("flag,value", [("--repeats", "0"), ("--repeats", "-1"), ("--workers", "0")])
+def test_nonpositive_repeats_workers_is_exit_2(project, capsys, flag, value):
+    rc = cli.main(["--lang", "en", "run", "--mode", "mock", flag, value, "--gate"])
+    cap = capsys.readouterr()
+    assert rc == 2
+    assert cap.err.startswith("Error:") and "1 or more" in cap.err and "Traceback" not in cap.err
+    assert cap.out == ""
+    reports = project / "reports"
+    assert not reports.exists() or not list(reports.iterdir())
+
+
+def test_workers_env_zero_is_exit_2(project, monkeypatch, capsys):
+    monkeypatch.setenv("EVALGATE_WORKERS", "0")
+    assert cli.main(["--lang", "en", "run", "--mode", "mock"]) == 2
+    assert "run.workers" in capsys.readouterr().err
+
+
 def test_gate_and_baseline_commands(project, capsys):
     cli.main(["run", "--mode", "mock", "--prompt", "prompts/regressed.txt", "--name", "latest"])
     assert cli.main(["gate"]) == 1
@@ -93,3 +110,30 @@ def test_workflows_have_required_steps():
         assert needle in wf
     assert "secrets." not in wf  # 비밀값 없이 돈다
     assert "workflow_dispatch" in (ROOT / ".github" / "workflows" / "regression-demo.yml").read_text()
+
+
+def _elsewhere(project, tmp_path_factory, monkeypatch):
+    """프로젝트 복사본 밖의 빈 폴더로 이동하고, 설정 파일 경로를 돌려준다."""
+    other = tmp_path_factory.mktemp("elsewhere")
+    monkeypatch.chdir(other)
+    return project / "evalgate.toml", other
+
+
+def test_config_in_other_folder_run_and_demo(project, tmp_path_factory, monkeypatch):
+    cfg, _ = _elsewhere(project, tmp_path_factory, monkeypatch)
+    assert cli.main(["--config", str(cfg), "run", "--mode", "mock", "--gate"]) == 0
+    assert cli.main(["--config", str(cfg), "demo"]) == 0
+
+
+def test_prompt_flag_is_relative_to_cwd(project, tmp_path_factory, monkeypatch):
+    cfg, other = _elsewhere(project, tmp_path_factory, monkeypatch)
+    (other / "mine.txt").write_text((project / "prompts" / "baseline.txt").read_text(encoding="utf-8"), encoding="utf-8")
+    assert cli.main(["--config", str(cfg), "run", "--mode", "mock", "--prompt", "mine.txt"]) == 0
+    assert cli.main(["--config", str(cfg), "run", "--mode", "mock", "--prompt", "prompts/baseline.txt"]) == 2
+
+
+@pytest.mark.parametrize("lang,text", [("en", "Prompt file not found:"), ("ko", "프롬프트 파일이 없습니다:")])
+def test_missing_prompt_file_is_translated_exit_2(project, capsys, lang, text):
+    rc = cli.main(["--lang", lang, "run", "--mode", "mock", "--prompt", "prompts/nope.txt"])
+    err = capsys.readouterr().err
+    assert rc == 2 and text in err and "[Errno" not in err

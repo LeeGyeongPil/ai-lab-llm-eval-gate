@@ -125,8 +125,15 @@ def _prepare(args) -> tuple[dict, list[dict], object, dict | None]:
     return cfg, cases, provider, load_baseline(cfg["run"]["baseline"])
 
 
+def _check_prompts(paths: list[str]) -> None:
+    for p in paths:
+        if not Path(p).is_file():
+            raise ConfigError("cfg_prompt_missing", path=str(p))
+
+
 def cmd_run(args) -> int:
     cfg, cases, provider, baseline = _prepare(args)
+    _check_prompts([cfg["run"]["prompt"]])
     lang = cfg["_lang"]
     result = evaluate_prompt(cfg, provider, cases, cfg["run"]["prompt"], baseline, lang)
     print(t("run_summary", lang, name=result["name"], mode=result["mode"], cases=len(cases), repeats=result["repeats"], model=result["model"]))
@@ -144,6 +151,7 @@ def cmd_run(args) -> int:
 def cmd_demo(args) -> int:
     args.mode = "mock"  # demo 는 항상 녹화 재생
     cfg, cases, provider, baseline = _prepare(args)
+    _check_prompts(list(cfg["demo"]["prompts"]))
     lang = cfg["_lang"]
     results = [evaluate_prompt(cfg, provider, cases, p, baseline, lang) for p in cfg["demo"]["prompts"]]
     print(t("demo_summary", lang, cases=len(cases), repeats=results[0]["repeats"], model=results[0]["model"]) + "\n")

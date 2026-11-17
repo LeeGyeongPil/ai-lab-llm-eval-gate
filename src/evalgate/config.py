@@ -31,13 +31,20 @@ def load_config(path: str | Path = "evalgate.toml", overrides: dict | None = Non
     """toml → 환경변수 → overrides 순으로 합친 설정 dict 를 돌려준다.
 
     overrides 는 {"run": {"mode": "real"}} 같은 중첩 dict 이고, 값이 None 이면 무시한다.
-    상대 경로(cases·baseline·cassette·reports_dir)는 설정 파일이 있는 폴더 기준으로 풀어 둔다.
+    상대 경로(cases·baseline·cassette·reports_dir, toml 의 run.prompt·demo.prompts)는 설정 파일이 있는 폴더 기준으로 풀어 둔다.
+    명령행·환경변수로 들어온 prompt 는 현재 폴더 기준 그대로다.
     """
     path = Path(path)
     if not path.is_file():
         raise ConfigError("cfg_missing", path=str(path))
     with path.open("rb") as f:
         cfg = tomllib.load(f)
+    base = path.resolve().parent
+    # toml 의 프롬프트 경로는 overrides 병합 전에 풀어, 명령행 --prompt 는 현재 폴더 기준으로 남긴다
+    if isinstance(cfg.get("run", {}).get("prompt"), str):
+        cfg["run"]["prompt"] = str(base / cfg["run"]["prompt"])
+    if isinstance(cfg.get("demo", {}).get("prompts"), list):
+        cfg["demo"]["prompts"] = [str(base / p) if isinstance(p, str) else p for p in cfg["demo"]["prompts"]]
     for section in ("run", "model", "scorers", "gate"):
         cfg.setdefault(section, {})
 
@@ -56,10 +63,14 @@ def load_config(path: str | Path = "evalgate.toml", overrides: dict | None = Non
 
     if cfg["run"].get("mode") not in ("mock", "real", "record"):
         raise ConfigError("cfg_mode_bad", mode=cfg["run"].get("mode"))
+    for key in ("repeats", "workers"):  # 합쳐진 최종값 기준 검사 (toml·환경변수·명령행 공통)
+        if key in cfg["run"]:
+            value = cfg["run"][key]
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ConfigError("cfg_int_min", name=f"run.{key}", value=value)
     if not cfg["model"].get("judge"):
         cfg["model"]["judge"] = cfg["model"]["name"]  # 심판 모델 기본값 = 피평가 모델
 
-    base = path.resolve().parent
     cfg["_root"] = base
     for key in ("cases", "baseline", "cassette", "reports_dir"):
         if key in cfg["run"]:
