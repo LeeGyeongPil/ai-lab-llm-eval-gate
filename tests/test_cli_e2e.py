@@ -110,3 +110,30 @@ def test_workflows_have_required_steps():
         assert needle in wf
     assert "secrets." not in wf  # 비밀값 없이 돈다
     assert "workflow_dispatch" in (ROOT / ".github" / "workflows" / "regression-demo.yml").read_text()
+
+
+def _elsewhere(project, tmp_path_factory, monkeypatch):
+    """프로젝트 복사본 밖의 빈 폴더로 이동하고, 설정 파일 경로를 돌려준다."""
+    other = tmp_path_factory.mktemp("elsewhere")
+    monkeypatch.chdir(other)
+    return project / "evalgate.toml", other
+
+
+def test_config_in_other_folder_run_and_demo(project, tmp_path_factory, monkeypatch):
+    cfg, _ = _elsewhere(project, tmp_path_factory, monkeypatch)
+    assert cli.main(["--config", str(cfg), "run", "--mode", "mock", "--gate"]) == 0
+    assert cli.main(["--config", str(cfg), "demo"]) == 0
+
+
+def test_prompt_flag_is_relative_to_cwd(project, tmp_path_factory, monkeypatch):
+    cfg, other = _elsewhere(project, tmp_path_factory, monkeypatch)
+    (other / "mine.txt").write_text((project / "prompts" / "baseline.txt").read_text(encoding="utf-8"), encoding="utf-8")
+    assert cli.main(["--config", str(cfg), "run", "--mode", "mock", "--prompt", "mine.txt"]) == 0
+    assert cli.main(["--config", str(cfg), "run", "--mode", "mock", "--prompt", "prompts/baseline.txt"]) == 2
+
+
+@pytest.mark.parametrize("lang,text", [("en", "Prompt file not found:"), ("ko", "프롬프트 파일이 없습니다:")])
+def test_missing_prompt_file_is_translated_exit_2(project, capsys, lang, text):
+    rc = cli.main(["--lang", lang, "run", "--mode", "mock", "--prompt", "prompts/nope.txt"])
+    err = capsys.readouterr().err
+    assert rc == 2 and text in err and "[Errno" not in err
