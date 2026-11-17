@@ -56,6 +56,11 @@ def load_config(path: str | Path = "evalgate.toml", overrides: dict | None = Non
 
     if cfg["run"].get("mode") not in ("mock", "real", "record"):
         raise ConfigError("cfg_mode_bad", mode=cfg["run"].get("mode"))
+    for key in ("repeats", "workers"):  # 합쳐진 최종값 기준 검사 (toml·환경변수·명령행 공통)
+        if key in cfg["run"]:
+            value = cfg["run"][key]
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ConfigError("cfg_int_min", name=f"run.{key}", value=value)
     if not cfg["model"].get("judge"):
         cfg["model"]["judge"] = cfg["model"]["name"]  # 심판 모델 기본값 = 피평가 모델
 

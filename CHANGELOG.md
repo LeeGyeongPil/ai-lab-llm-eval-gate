@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3
+
+- Fixed: `--repeats 0`, `--repeats -1` and `--workers 0` (also via `EVALGATE_WORKERS` or `evalgate.toml`) now stop with a one-line configuration error and exit code 2 instead of a `ZeroDivisionError` traceback with exit 1 (or, for workers, silently running with 1). No tables or reports are written.
+- Fixed: non-integer values from `evalgate.toml` (`2.0`, `"2"`) for `repeats` and `workers` are rejected the same way.
+
 ## 0.2.2
 
 - Documentation: README screenshots are now taken per display language (English in `README.md`, Korean in `README.ko.md`). The tool itself is unchanged.

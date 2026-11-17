@@ -248,7 +248,7 @@ uv run --no-project --python 3.14 python -m evalgate.cli baseline               
 | [`src/evalgate/gate.py`](src/evalgate/gate.py) | 게이트 판정(약 40줄) |
 | [`src/evalgate/i18n.py`](src/evalgate/i18n.py) | 영어·한국어 메시지 표와 언어 선택 |
 | [`src/evalgate/report.py`](src/evalgate/report.py) | 외부 요청 없는 단일 HTML 보고서 |
-| [`tests/`](tests) | 단위 · 엔드투엔드 테스트 107개 (영어·한국어 메시지 표 일치 검사 포함) |
+| [`tests/`](tests) | 단위 · 엔드투엔드 테스트 111개 (영어·한국어 메시지 표 일치 검사 포함) |
 
 **핵심 1. 게이트는 숫자 비교입니다.** 하한과 비교하고, 기준선 대비 하락폭과 비교하고, 이유 문장을 모아 돌려줍니다. 비어 있으면 통과입니다.
 
@@ -296,6 +296,7 @@ elif cur["mean"] < floor:
 | `requires-python` 오류 / 이상한 Python 버전 | 3.14 미만이거나 uv가 다른 버전을 고름 | `uv python install 3.14` (저장소의 `.python-version`이 3.14로 고정) |
 | 실모드에서 연결 오류 | Ollama가 꺼져 있거나 모델을 안 받음 | `ollama serve`, `ollama pull qwen3:4b` 와 `ollama pull bge-m3`, 주소는 `EVALGATE_BASE_URL` |
 | 실모드가 너무 느림 | 생각 모델 + 심판 호출이 문제마다 있음 | `--repeats 1`, 더 작은 세트, 생각 없는 모델로 교체(이 저장소에서 검증한 범위 밖) |
+| `--repeats` / `--workers` 가 exit 2 로 거부됨 | 두 값은 1 이상의 정수여야 함(`0`·음수는 거부. `--workers` 는 `EVALGATE_WORKERS`·`evalgate.toml` 값도, `repeats` 는 `evalgate.toml` 값도 검사) | `1` 이상으로 지정 |
 | 같은 명령인데 실모드 점수가 녹화와 다름 | 모델 비결정성(같은 시드라도 부하에 따라 달라질 수 있음) | 정상입니다. 반복 횟수를 늘리고 `±`를 함께 보세요 |
 | 문구가 원하는 언어가 아님 | `--lang` / `EVALGATE_LANG` / `LANG` 순으로 결정 | `--lang en` 또는 `--lang ko`를 주거나 `EVALGATE_LANG`을 설정("화면 언어 바꾸기" 참고) |
 | 판정에 `parse_error` | 심판 응답이 비었거나 형식이 아님 | 점수 0으로 처리됨(의도). `max_tokens`·컨텍스트 길이를 늘려 다시 녹화 |

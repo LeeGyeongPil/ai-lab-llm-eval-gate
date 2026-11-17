@@ -253,7 +253,7 @@ A full correspondence table with the big tools (promptfoo · Inspect) is in [doc
 | [`src/evalgate/gate.py`](src/evalgate/gate.py) | Gate verdict (about 40 lines) |
 | [`src/evalgate/i18n.py`](src/evalgate/i18n.py) | English/Korean message table and language selection |
 | [`src/evalgate/report.py`](src/evalgate/report.py) | A single HTML report with no external requests |
-| [`tests/`](tests) | 107 unit and end-to-end tests (including English/Korean message-table parity) |
+| [`tests/`](tests) | 111 unit and end-to-end tests (including English/Korean message-table parity) |
 
 **Key 1. The gate is a number comparison.** It compares with the floor, compares the drop versus the baseline, collects the reason sentences and returns them. If the list is empty, it passes.
 
@@ -303,6 +303,7 @@ elif cur["mean"] < floor:
 | `requires-python` error / odd Python version | Below 3.14, or uv chose another version | `uv python install 3.14` (the repository's `.python-version` is pinned to 3.14) |
 | Connection error in real mode | Ollama is off or the models were not pulled | `ollama serve`, `ollama pull qwen3:4b` and `ollama pull bge-m3`; the address is `EVALGATE_BASE_URL` |
 | Real mode is too slow | A thinking model plus a judge call for every question | `--repeats 1`, a smaller set, swap to a model without thinking (outside the range verified in this repository) |
+| `--repeats` / `--workers` rejected with exit 2 | Both must be integers of 1 or more (`0` or negative values are refused; `--workers` is also checked when it comes from `EVALGATE_WORKERS` or `evalgate.toml`, and `repeats` from `evalgate.toml`) | Use `1` or higher |
 | Same command, but real-mode scores differ from the recording | Model non-determinism (even with the same seed, it can vary with load) | Normal. Increase the number of repeats and look at the `±` too |
 | Messages are in the wrong language | `--lang` / `EVALGATE_LANG` / `LANG` decide it | Pass `--lang en` or `--lang ko`, or set `EVALGATE_LANG` (see "Change the display language") |
 | `parse_error` in a verdict | The judge response is empty or not in the expected format | Treated as score 0 (intended). Increase `max_tokens` and context length and record again |

@@ -56,6 +56,23 @@ def test_missing_cassette_is_exit_2(project, capsys):
     assert "녹화에 없는 요청" in err and "--mode record" in err
 
 
+@pytest.mark.parametrize("flag,value", [("--repeats", "0"), ("--repeats", "-1"), ("--workers", "0")])
+def test_nonpositive_repeats_workers_is_exit_2(project, capsys, flag, value):
+    rc = cli.main(["--lang", "en", "run", "--mode", "mock", flag, value, "--gate"])
+    cap = capsys.readouterr()
+    assert rc == 2
+    assert cap.err.startswith("Error:") and "1 or more" in cap.err and "Traceback" not in cap.err
+    assert cap.out == ""
+    reports = project / "reports"
+    assert not reports.exists() or not list(reports.iterdir())
+
+
+def test_workers_env_zero_is_exit_2(project, monkeypatch, capsys):
+    monkeypatch.setenv("EVALGATE_WORKERS", "0")
+    assert cli.main(["--lang", "en", "run", "--mode", "mock"]) == 2
+    assert "run.workers" in capsys.readouterr().err
+
+
 def test_gate_and_baseline_commands(project, capsys):
     cli.main(["run", "--mode", "mock", "--prompt", "prompts/regressed.txt", "--name", "latest"])
     assert cli.main(["gate"]) == 1
